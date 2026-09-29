@@ -1543,17 +1543,13 @@
   }
 }
 
-.install-setup {
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: rgba(255,255,255,.9);
+
+.week-session-actions { display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
+.week-start-button { padding:8px 11px; border-radius:12px; background:var(--accent); color:#fff; text-decoration:none; font-size:.74rem; font-weight:850; white-space:nowrap; }
+.progression-target { margin-top:16px; padding:12px; border-radius:14px; background:rgba(44,163,108,.10); color:#237c54; }
+.progression-target strong,.progression-target span { display:block; }
+.progression-target span { margin-top:4px; font-size:.8rem; }
+.slider-guide { display:block; margin-top:-5px; padding-bottom:12px; color:var(--faint); line-height:1.45; }
+@media (max-width:420px) {
+  .week-session-actions { grid-column:2; align-items:flex-start; }
 }
-.install-setup summary { cursor: pointer; color: var(--ink); font-weight: 850; }
-.install-setup > p { color: var(--muted); line-height: 1.5; font-size: .88rem; }
-.install-setup label { display: grid; gap: 7px; color: var(--ink); font-size: .8rem; font-weight: 800; }
-.install-setup input { min-height: 48px; padding: 0 13px; border: 1px solid var(--border); border-radius: 14px; font: inherit; }
-.install-setup .primary-button { width: 100%; margin-top: 10px; }
-.setup-message { margin: 10px 0 0; color: #237c54; font-size: .84rem; font-weight: 750; }
-.setup-message--error { color: #a33b3b; }
