@@ -14,7 +14,19 @@ type SessionRow = {
 };
 
 type FeedbackRow = {
+  session_id: string;
+  effort: number;
+  enjoyment: number;
+  post_feeling: "great" | "okay" | "tired" | "very_tired";
   discomfort: "none" | "minor" | "yes";
+  notes: string | null;
+  submitted_at: string;
+  sessions: {
+    title: string;
+    scheduled_date: string;
+    session_type: "cardio" | "swim" | "mixed" | "strength";
+    estimated_minutes: number;
+  } | null;
 };
 
 function mondayOfCurrentWeek() {
@@ -51,7 +63,11 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
             .select("id,status,scheduled_date")
             .gte("scheduled_date", mondayOfCurrentWeek())
             .lte("scheduled_date", sundayOfCurrentWeek()),
-          supabase.from("session_feedback").select("discomfort"),
+          supabase
+            .from("session_feedback")
+            .select("session_id,effort,enjoyment,post_feeling,discomfort,notes,submitted_at,sessions(title,scheduled_date,session_type,estimated_minutes)")
+            .order("submitted_at", { ascending: false })
+            .limit(10),
         ]);
 
       if (!mounted) return;
@@ -115,6 +131,76 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
           <span>Feedback flags</span>
           <strong>{feedbackFlags}</strong>
         </article>
+      </section>
+
+      <section className="coach-feedback-panel">
+        <div className="coach-feedback-heading">
+          <div>
+            <span className="eyebrow">RECENT FEEDBACK</span>
+            <h2>How sessions are landing</h2>
+          </div>
+          <span className="status-pill">{feedback.length} recent</span>
+        </div>
+
+        {feedback.length === 0 ? (
+          <div className="coach-feedback-empty">
+            No completed session feedback yet.
+          </div>
+        ) : (
+          <div className="coach-feedback-list">
+            {feedback.map((item) => (
+              <article
+                className={
+                  "coach-feedback-card " +
+                  (item.discomfort !== "none" ? "coach-feedback-card--flagged" : "")
+                }
+                key={item.session_id}
+              >
+                <div className="coach-feedback-topline">
+                  <div>
+                    <span className="coach-feedback-date">
+                      {item.sessions?.scheduled_date
+                        ? new Intl.DateTimeFormat("en-GB", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          }).format(new Date(item.sessions.scheduled_date + "T12:00:00"))
+                        : "Session"}
+                    </span>
+                    <h3>{item.sessions?.title ?? "Completed session"}</h3>
+                  </div>
+                  <span
+                    className={
+                      "feedback-flag " +
+                      (item.discomfort === "none" ? "feedback-flag--clear" : "feedback-flag--alert")
+                    }
+                  >
+                    {item.discomfort === "none"
+                      ? "No discomfort"
+                      : item.discomfort === "minor"
+                        ? "Minor discomfort"
+                        : "Discomfort"}
+                  </span>
+                </div>
+
+                <div className="coach-feedback-metrics">
+                  <span>Effort <strong>{item.effort}/10</strong></span>
+                  <span>Enjoyment <strong>{item.enjoyment}/10</strong></span>
+                  <span>
+                    Feeling{" "}
+                    <strong>
+                      {item.post_feeling === "very_tired"
+                        ? "Very tired"
+                        : item.post_feeling.charAt(0).toUpperCase() + item.post_feeling.slice(1)}
+                    </strong>
+                  </span>
+                </div>
+
+                {item.notes ? <p className="coach-feedback-note">“{item.notes}”</p> : null}
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <button
