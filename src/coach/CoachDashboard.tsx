@@ -4,7 +4,7 @@ import { APP_VERSION } from "../version";
 
 type BackendState = "checking" | "connected" | "error";
 
-export default function CoachDashboard() {
+export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [backendState, setBackendState] = useState<BackendState>("checking");
   const [backendMessage, setBackendMessage] = useState("Checking Chantastic backend…");
 
@@ -72,8 +72,12 @@ export default function CoachDashboard() {
       <section className="empty-card">
         <span className="empty-icon" aria-hidden="true">🛠️</span>
         <h2>Coach dashboard ready</h2>
-        <p>Authentication and programme controls come next.</p>
+        <p>Authentication is active. Programme controls come next.</p>
       </section>
+
+      <button className="secondary-button" type="button" onClick={() => void onSignOut()}>
+        Sign out
+      </button>
 
       <p className="version">Chantastic V{APP_VERSION}</p>
     </main>
