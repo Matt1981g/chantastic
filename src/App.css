@@ -1213,6 +1213,272 @@
   }
 }
 
+
+.week-summary-card,
+.history-summary,
+.history-card,
+.week-session-card,
+.coach-feedback-panel {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.week-summary-card {
+  padding: 18px;
+  border-radius: 22px;
+  margin-bottom: 14px;
+}
+
+.week-summary-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.week-session-list,
+.history-list,
+.coach-feedback-list {
+  display: grid;
+  gap: 12px;
+}
+
+.week-session-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.week-session-card--complete {
+  opacity: 0.78;
+}
+
+.week-session-icon,
+.history-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: var(--soft);
+  font-size: 1.35rem;
+}
+
+.week-session-copy {
+  min-width: 0;
+}
+
+.week-session-day,
+.history-date,
+.coach-feedback-date {
+  display: block;
+  color: var(--faint);
+  font-size: 0.73rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.week-session-copy h2,
+.history-card h2,
+.coach-feedback-card h3 {
+  margin: 3px 0 0;
+  color: var(--ink);
+}
+
+.week-session-copy h2,
+.history-card h2 {
+  font-size: 1rem;
+}
+
+.week-session-meta,
+.history-feedback-row,
+.coach-feedback-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.week-session-meta span,
+.history-feedback-row span,
+.coach-feedback-metrics span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.week-status {
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.week-status--completed {
+  background: rgba(44, 163, 108, 0.11);
+  color: #237c54;
+}
+
+.week-status--in_progress {
+  background: rgba(215, 166, 34, 0.12);
+  color: #8a6a15;
+}
+
+.week-status--planned {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.week-status--skipped {
+  background: rgba(120, 120, 120, 0.1);
+  color: var(--faint);
+}
+
+.history-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border-radius: 22px;
+  margin-bottom: 14px;
+}
+
+.history-summary > div {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.history-summary span,
+.history-summary strong {
+  display: block;
+}
+
+.history-summary span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.history-summary strong {
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.history-card {
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.history-card-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.history-card p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.history-feedback-row strong,
+.coach-feedback-metrics strong {
+  color: var(--ink);
+}
+
+.coach-feedback-panel {
+  margin: 16px 0;
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.coach-feedback-heading,
+.coach-feedback-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coach-feedback-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.2rem;
+}
+
+.coach-feedback-empty {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.coach-feedback-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.coach-feedback-card--flagged {
+  border-color: rgba(211, 77, 77, 0.28);
+  background: rgba(211, 77, 77, 0.03);
+}
+
+.coach-feedback-card h3 {
+  font-size: 0.98rem;
+}
+
+.feedback-flag {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.feedback-flag--clear {
+  background: rgba(44, 163, 108, 0.1);
+  color: #237c54;
+}
+
+.feedback-flag--alert {
+  background: rgba(211, 77, 77, 0.11);
+  color: #a33b3b;
+}
+
+.coach-feedback-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+@media (max-width: 420px) {
+  .week-session-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .week-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .coach-feedback-topline {
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 380px) {
   .choice-grid--three {
     grid-template-columns: 1fr;
