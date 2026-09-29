@@ -318,8 +318,8 @@ export default function CoachWeekPlanner() {
       })),
       coaching_context: {
         primary_goal: "Build sustainable gym confidence and general fitness.",
-        current_style: "Beginner-friendly cardio and swimming, with simple strength added only when appropriate.",
-        normal_session_minutes: "45-55",
+        current_style: "Beginner-friendly two-part sessions. Allowed orders only: cardio → swim, strength → swim, cardio → strength, strength → cardio.",
+        normal_session_minutes: "Maximum 50 minutes. Never exceed 50 minutes.",
         normal_weekly_frequency: "3-5",
         swim_ui_rule: "Swimming sessions must be programmed as a complete plan viewed before entering the pool. No staged phone interaction while swimming.",
         programming_instruction:
@@ -341,7 +341,7 @@ export default function CoachWeekPlanner() {
               scheduled_date: "YYYY-MM-DD",
               session_type: "cardio | swim | mixed | strength",
               title: "string",
-              estimated_minutes: "number",
+              estimated_minutes: "number, maximum 50",
               optional: "boolean",
               blocks: [
                 {
@@ -349,8 +349,8 @@ export default function CoachWeekPlanner() {
                   block_type: "warmup | cardio | swim | strength | intervals | cooldown | other",
                   duration_minutes: "number",
                   instructions: "string",
-                  target_effort_min: "1-10",
-                  target_effort_max: "1-10",
+                  target_effort_min: "1-5",
+                  target_effort_max: "1-5",
                   equipment_key: "Use only one of the available_equipment equipment_key values, or null when no machine applies",
                 },
               ],
@@ -402,6 +402,20 @@ export default function CoachWeekPlanner() {
       const allowedEquipment = new Set(equipment.map((item) => item.equipment_key));
 
       for (const session of importedSessions) {
+        const blockMinutes = session.blocks?.reduce((sum, block) => sum + Number(block.duration_minutes || 0), 0) ?? 0;
+        if (Number(session.estimated_minutes) > 50 || blockMinutes > 50) {
+          throw new Error("Every session must be 50 minutes or less.");
+        }
+
+        const coreOrder = (session.blocks ?? [])
+          .map((block) => block.block_type)
+          .filter((type) => type === "cardio" || type === "swim" || type === "strength");
+        const allowedOrders = ["cardio>swim", "strength>swim", "cardio>strength", "strength>cardio"];
+        const orderKey = [...new Set(coreOrder)].join(">");
+        if (orderKey && !allowedOrders.includes(orderKey)) {
+          throw new Error("Session order must be cardio→swim, weights→swim, cardio→weights or weights→cardio.");
+        }
+
         if (!["cardio", "swim", "mixed", "strength"].includes(session.session_type)) {
           throw new Error("Imported programme contains an unsupported session type.");
         }
@@ -434,6 +448,15 @@ export default function CoachWeekPlanner() {
       setSaveState("error");
       setMessage("Chantal needs to sign in once before a programme can be assigned.");
       return;
+    }
+
+    for (const session of sessions) {
+      const blockMinutes = session.blocks.reduce((sum, block) => sum + Number(block.duration_minutes || 0), 0);
+      if (Number(session.estimated_minutes) > 50 || blockMinutes > 50) {
+        setSaveState("error");
+        setMessage("Every session must be 50 minutes or less.");
+        return;
+      }
     }
 
     setSaveState("saving");
