@@ -7,41 +7,41 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [useMagicLink, setUseMagicLink] = useState(false);
 
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handlePasswordSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) return;
+    if (!cleanEmail || !password) return;
 
     setStatus("sending");
     setMessage("");
 
-    if (isStandalone) {
-      if (!password) {
-        setStatus("error");
-        setMessage("Enter the Chantastic password you set in Safari.");
-        return;
-      }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password,
-      });
-
-      if (error) {
-        setStatus("error");
-        setMessage("That email or password didn’t work. Open Chantastic in Safari and use “Set up the Home Screen app” once.");
-        return;
-      }
-
-      setStatus("sent");
-      setMessage("Signed in. Opening Chantastic…");
+    if (error) {
+      setStatus("error");
+      setMessage("That email or password didn’t work.");
       return;
     }
+
+    setStatus("sent");
+    setMessage("Signed in. Opening Chantastic…");
+  };
+
+  const sendMagicLink = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setStatus("error");
+      setMessage("Enter your email first.");
+      return;
+    }
+
+    setStatus("sending");
+    setMessage("");
 
     const { error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
@@ -68,32 +68,63 @@ export default function Login() {
       </section>
 
       <section className="auth-card">
-        <span className="auth-icon" aria-hidden="true">{isStandalone ? "📱" : "✨"}</span>
-        <h2>{isStandalone ? "Welcome back" : "Welcome"}</h2>
-        <p className="muted">
-          {isStandalone
-            ? "Sign in once here and Chantastic will keep you signed in on your Home Screen."
-            : "Enter your email and we’ll send you a secure sign-in link."}
-        </p>
+        <span className="auth-icon" aria-hidden="true">📱</span>
+        <h2>Welcome back</h2>
+        <p className="muted">Sign in with your Chantastic email and password.</p>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handlePasswordSignIn}>
           <label htmlFor="email">Email</label>
-          <input id="email" type="email" autoComplete="email" placeholder="you@example.com" value={email}
-            onChange={(event) => setEmail(event.target.value)} disabled={status === "sending"} required />
-          {isStandalone ? (
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={status === "sending"}
+            required
+          />
+
+          {!useMagicLink ? (
             <>
-              <label htmlFor="password">Chantastic password</label>
-              <input id="password" type="password" autoComplete="current-password" placeholder="Your Chantastic password"
-                value={password} onChange={(event) => setPassword(event.target.value)} disabled={status === "sending"} required />
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Your Chantastic password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={status === "sending"}
+                required
+              />
+              <button type="submit" disabled={status === "sending"}>
+                {status === "sending" ? "Signing in…" : "Sign in"}
+              </button>
             </>
-          ) : null}
-          <button type="submit" disabled={status === "sending"}>
-            {status === "sending" ? "Signing in…" : isStandalone ? "Open Chantastic" : "Send sign-in link"}
-          </button>
+          ) : (
+            <button type="button" disabled={status === "sending"} onClick={() => void sendMagicLink()}>
+              {status === "sending" ? "Sending…" : "Send magic link"}
+            </button>
+          )}
         </form>
 
+        <button
+          className="text-button"
+          type="button"
+          onClick={() => {
+            setUseMagicLink((current) => !current);
+            setMessage("");
+            setStatus("idle");
+          }}
+        >
+          {useMagicLink ? "Use password instead" : "Use email magic link instead"}
+        </button>
+
         {message ? (
-          <p className={status === "error" ? "auth-message auth-message--error" : "auth-message"}>{message}</p>
+          <p className={status === "error" ? "auth-message auth-message--error" : "auth-message"}>
+            {message}
+          </p>
         ) : null}
       </section>
     </main>
