@@ -25,6 +25,15 @@
   padding: 24px 0 30px;
 }
 
+.brand-logo {
+  display: block;
+  width: 108px;
+  height: 108px;
+  margin: 0 auto 18px;
+  border-radius: 28px;
+  box-shadow: 0 14px 36px rgba(13, 133, 148, 0.14);
+}
+
 .brand-kicker,
 .eyebrow {
   display: block;
