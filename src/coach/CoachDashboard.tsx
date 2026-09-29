@@ -84,7 +84,7 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
       }
 
       setSessions((sessionData as SessionRow[]) ?? []);
-      setFeedback((feedbackData as FeedbackRow[]) ?? []);
+      setFeedback(((feedbackData ?? []) as unknown) as FeedbackRow[]);
     };
 
     void loadDashboard();
