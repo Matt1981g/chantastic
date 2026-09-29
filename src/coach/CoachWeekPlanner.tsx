@@ -61,11 +61,6 @@ function mondayOfCurrentWeek() {
   return now.toISOString().slice(0, 10);
 }
 
-function addDays(date: string, days: number) {
-  const value = new Date(date + "T12:00:00");
-  value.setDate(value.getDate() + days);
-  return value.toISOString().slice(0, 10);
-}
 
 export default function CoachWeekPlanner() {
   const [athlete, setAthlete] = useState<Athlete | null>(null);
