@@ -93,11 +93,11 @@ export default function App() {
 
   const loadIdentity = useCallback(async () => {
     const {
-      data: { claims },
-      error: claimsError,
-    } = await supabase.auth.getClaims();
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (claimsError || !claims?.sub) {
+    if (userError || !user) {
       setProfile(null);
       setAuthState("signedOut");
       return;
@@ -106,8 +106,8 @@ export default function App() {
     const { data, error } = await supabase
       .from("profiles")
       .select("id,email,display_name,role")
-      .eq("id", claims.sub)
-      .single();
+      .eq("id", user.id)
+      .maybeSingle();
 
     if (error || !data) {
       setProfile(null);
@@ -129,7 +129,9 @@ export default function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      void loadIdentity();
+      window.setTimeout(() => {
+        void loadIdentity();
+      }, 0);
     });
 
     return () => subscription.unsubscribe();
