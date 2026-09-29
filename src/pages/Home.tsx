@@ -28,9 +28,11 @@ function localDateString() {
 export default function Home({
   displayName,
   previewSession,
+  onStartPreview,
 }: {
   displayName: string;
   previewSession?: Session | null;
+  onStartPreview?: () => void;
 }) {
   const [session, setSession] = useState<Session | null>(previewSession ?? null);
   const [loading, setLoading] = useState(!previewSession);
@@ -111,9 +113,15 @@ export default function Home({
             </div>
           </div>
 
-          <a className="start-session-button" href="#/workout">
-            Start session
-          </a>
+          {onStartPreview ? (
+            <button className="start-session-button" type="button" onClick={onStartPreview}>
+              Start session
+            </button>
+          ) : (
+            <a className="start-session-button" href="#/workout">
+              Start session
+            </a>
+          )}
         </section>
       ) : (
         <section className="today-card">
