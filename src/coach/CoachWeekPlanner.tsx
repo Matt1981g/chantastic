@@ -18,6 +18,13 @@ type BlockDraft = {
   target_effort_min: number;
   target_effort_max: number;
   equipment_key?: string | null;
+  target_metric?: {
+    resistance_level?: number | null;
+    incline_percent?: number | null;
+    target_speed_kmh?: number | null;
+    target_distance?: number | null;
+    distance_unit?: "m" | "km" | null;
+  } | null;
 };
 
 type Equipment = {
@@ -291,7 +298,7 @@ export default function CoachWeekPlanner() {
               .order("sort_order"),
             supabase
               .from("session_feedback")
-              .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,notes,submitted_at")
+              .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,cardio_equipment_key,resistance_level,incline_percent,notes,submitted_at")
               .in("session_id", sessionIds),
           ])
         : [
@@ -304,6 +311,12 @@ export default function CoachWeekPlanner() {
       setBridgeMessage(blocksError?.message ?? feedbackError?.message ?? "Could not export history.");
       return;
     }
+
+    const { data: cardioPerformance } = await supabase
+      .from("cardio_performance")
+      .select("equipment_key,duration_minutes,distance_value,distance_unit,resistance_level,incline_percent,performed_at,source")
+      .eq("user_id", athlete.id)
+      .order("performed_at", { ascending: false });
 
     const exportPayload = {
       contract_version: "CHANTASTIC_COACH_BRIDGE_1.0",
@@ -322,14 +335,17 @@ export default function CoachWeekPlanner() {
         normal_session_minutes: "Maximum 50 minutes. Never exceed 50 minutes.",
         normal_weekly_frequency: "3-5",
         swim_ui_rule: "Swimming sessions must be programmed as a complete plan viewed before entering the pool. No staged phone interaction while swimming.",
+        cardio_progression_rule:
+          "For the same cardio machine, use the most recent valid baseline. Keep the recorded resistance/level or treadmill incline comparable, then target approximately 2.5% higher average speed/distance when feedback supports progression. If resistance/level is missing, establish it before treating the baseline as fully comparable.",
         programming_instruction:
-          "Review recent adherence and feedback. Produce the next week conservatively, progressing only when the completed sessions and feedback support it.",
+          "Review recent adherence, cardio performance, machine settings and feedback. Produce the next week conservatively, progressing only when the completed sessions and feedback support it.",
       },
       recent_history_days: 21,
       weekly_plans: plans ?? [],
       sessions: sessionRows ?? [],
       session_blocks: blockRows ?? [],
       feedback: feedbackRows ?? [],
+      cardio_performance: cardioPerformance ?? [],
       required_response: {
         contract_version: "CHANTASTIC_COACH_BRIDGE_1.0",
         next_week: {
@@ -352,6 +368,13 @@ export default function CoachWeekPlanner() {
                   target_effort_min: "1-5",
                   target_effort_max: "1-5",
                   equipment_key: "Use only one of the available_equipment equipment_key values, or null when no machine applies",
+                  target_metric: {
+                    resistance_level: "number or null; use for cross trainer, bike, rower, SkiErg and stepper",
+                    incline_percent: "number or null; use for treadmill",
+                    target_speed_kmh: "number or null",
+                    target_distance: "number or null",
+                    distance_unit: "m | km | null",
+                  },
                 },
               ],
             },
@@ -566,6 +589,7 @@ export default function CoachWeekPlanner() {
         target_effort_min: Number(block.target_effort_min),
         target_effort_max: Number(block.target_effort_max),
         equipment_key: block.equipment_key || null,
+        target_metric: block.target_metric ?? null,
         sort_order: blockIndex,
       }));
     });
@@ -746,7 +770,7 @@ export default function CoachWeekPlanner() {
                 <input
                   type="number"
                   min={5}
-                  max={180}
+                  max={50}
                   value={session.estimated_minutes}
                   onChange={(event) =>
                     updateSession(sessionIndex, "estimated_minutes", Number(event.target.value))
@@ -804,7 +828,7 @@ export default function CoachWeekPlanner() {
                       <input
                         type="number"
                         min={1}
-                        max={180}
+                        max={50}
                         value={block.duration_minutes}
                         onChange={(event) =>
                           updateBlock(sessionIndex, blockIndex, "duration_minutes", Number(event.target.value))
@@ -818,7 +842,7 @@ export default function CoachWeekPlanner() {
                         <input
                           type="number"
                           min={1}
-                          max={10}
+                          max={5}
                           value={block.target_effort_min}
                           onChange={(event) =>
                             updateBlock(sessionIndex, blockIndex, "target_effort_min", Number(event.target.value))
@@ -828,7 +852,7 @@ export default function CoachWeekPlanner() {
                         <input
                           type="number"
                           min={1}
-                          max={10}
+                          max={5}
                           value={block.target_effort_max}
                           onChange={(event) =>
                             updateBlock(sessionIndex, blockIndex, "target_effort_max", Number(event.target.value))
@@ -859,6 +883,41 @@ export default function CoachWeekPlanner() {
                       ))}
                     </select>
                   </label>
+
+                  {block.equipment_key === "treadmill" ? (
+                    <label className="equipment-field">
+                      Target incline (%)
+                      <input
+                        type="number"
+                        min={0}
+                        max={40}
+                        step={0.5}
+                        value={block.target_metric?.incline_percent ?? ""}
+                        onChange={(event) =>
+                          updateBlock(sessionIndex, blockIndex, "target_metric", {
+                            ...(block.target_metric ?? {}),
+                            incline_percent: event.target.value === "" ? null : Number(event.target.value),
+                          })
+                        }
+                      />
+                    </label>
+                  ) : block.equipment_key && ["cross_trainer","bike","rower","concept2_skierg","stepper"].includes(block.equipment_key) ? (
+                    <label className="equipment-field">
+                      Target resistance / level
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={block.target_metric?.resistance_level ?? ""}
+                        onChange={(event) =>
+                          updateBlock(sessionIndex, blockIndex, "target_metric", {
+                            ...(block.target_metric ?? {}),
+                            resistance_level: event.target.value === "" ? null : Number(event.target.value),
+                          })
+                        }
+                      />
+                    </label>
+                  ) : null}
 
                   <textarea
                     rows={2}
