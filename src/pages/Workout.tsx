@@ -20,7 +20,16 @@ type Session = {
   status: "planned" | "in_progress" | "completed" | "skipped";
 };
 
-type Stage = "loading" | "active" | "feedback" | "done" | "empty" | "error";
+type Stage =
+  | "loading"
+  | "active"
+  | "swim_plan"
+  | "swim_active"
+  | "feedback"
+  | "done"
+  | "empty"
+  | "error";
+
 type Feeling = "great" | "okay" | "tired" | "very_tired";
 type Discomfort = "none" | "minor" | "yes";
 
@@ -56,7 +65,7 @@ export default function Workout({
     if (previewSession) {
       setSession(previewSession);
       setBlocks(previewBlocks ?? []);
-      setStage("active");
+      setStage(previewSession.session_type === "swim" ? "swim_plan" : "active");
       return;
     }
 
@@ -112,6 +121,14 @@ export default function Workout({
         return;
       }
 
+      setSession(cleanSession);
+      setBlocks((blockData as Block[]) ?? []);
+
+      if (cleanSession.session_type === "swim") {
+        setStage(cleanSession.status === "in_progress" ? "swim_active" : "swim_plan");
+        return;
+      }
+
       const { error: startError } = await supabase.rpc("start_session", {
         p_session_id: cleanSession.id,
       });
@@ -122,8 +139,6 @@ export default function Workout({
         return;
       }
 
-      setSession(cleanSession);
-      setBlocks((blockData as Block[]) ?? []);
       setStage("active");
     };
 
@@ -131,10 +146,29 @@ export default function Workout({
   }, [previewSession, previewBlocks]);
 
   const currentBlock = blocks[blockIndex] ?? null;
+
   const progress = useMemo(() => {
     if (!blocks.length) return 0;
     return Math.round(((blockIndex + 1) / blocks.length) * 100);
   }, [blockIndex, blocks.length]);
+
+  const startSwim = async () => {
+    if (!session) return;
+
+    if (!previewSession) {
+      const { error } = await supabase.rpc("start_session", {
+        p_session_id: session.id,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+    }
+
+    setMessage("");
+    setStage("swim_active");
+  };
 
   const submitFeedback = async () => {
     if (!session) return;
@@ -185,7 +219,9 @@ export default function Workout({
           <h2>No session today</h2>
           <p>Enjoy the easy day. Your next planned session will appear automatically.</p>
           {onPreviewDone ? (
-            <button className="start-session-button" type="button" onClick={onPreviewDone}>Back to preview</button>
+            <button className="start-session-button" type="button" onClick={onPreviewDone}>
+              Back to preview
+            </button>
           ) : (
             <a className="start-session-button" href="#/">Back to Today</a>
           )}
@@ -332,6 +368,68 @@ export default function Workout({
     );
   }
 
+  if (stage === "swim_plan") {
+    return (
+      <main className="page workout-page">
+        <section className="workout-header">
+          <span className="eyebrow">SWIM SESSION</span>
+          <h1>{session?.title}</h1>
+          <p>{session?.estimated_minutes} minutes</p>
+        </section>
+
+        <section className="swim-plan-card">
+          <div className="swim-phone-note">
+            <span aria-hidden="true">📱➡️🔒</span>
+            <div>
+              <strong>Read it, start it, put the phone away.</strong>
+              <p>No phone interaction needed in the pool.</p>
+            </div>
+          </div>
+
+          <div className="swim-plan-list">
+            {blocks.map((block, index) => (
+              <article className="swim-plan-block" key={block.id}>
+                <span className="swim-plan-number">{index + 1}</span>
+                <div>
+                  <h2>{block.title}</h2>
+                  <div className="swim-plan-meta">
+                    {block.duration_minutes ? <span>{block.duration_minutes} min</span> : null}
+                    {block.target_effort_min && block.target_effort_max ? (
+                      <span>Effort {block.target_effort_min}–{block.target_effort_max}/10</span>
+                    ) : null}
+                  </div>
+                  {block.instructions ? <p>{block.instructions}</p> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {message ? <p className="planner-message planner-message--error">{message}</p> : null}
+
+          <button className="primary-button swim-main-button" type="button" onClick={() => void startSwim()}>
+            Start Swim
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (stage === "swim_active") {
+    return (
+      <main className="page workout-page swim-active-page">
+        <section className="swim-active-card">
+          <span className="swim-active-icon" aria-hidden="true">🏊</span>
+          <span className="eyebrow">SWIM IN PROGRESS</span>
+          <h1>Phone away.</h1>
+          <p>Enjoy the swim. Come back here when you’re finished.</p>
+          <button className="swim-stop-button" type="button" onClick={() => setStage("feedback")}>
+            Stop Swim
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="page workout-page">
       <section className="workout-header">
@@ -350,15 +448,13 @@ export default function Workout({
             Step {blockIndex + 1} of {blocks.length}
           </div>
           <span className="workout-block-icon" aria-hidden="true">
-            {currentBlock.block_type === "swim"
-              ? "🏊"
-              : currentBlock.block_type === "warmup"
-                ? "🌤️"
-                : currentBlock.block_type === "cooldown"
-                  ? "🌿"
-                  : currentBlock.block_type === "strength"
-                    ? "🏋️"
-                    : "🚴"}
+            {currentBlock.block_type === "warmup"
+              ? "🌤️"
+              : currentBlock.block_type === "cooldown"
+                ? "🌿"
+                : currentBlock.block_type === "strength"
+                  ? "🏋️"
+                  : "🚴"}
           </span>
           <h2>{currentBlock.title}</h2>
 
