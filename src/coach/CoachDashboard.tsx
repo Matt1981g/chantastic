@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
-import { useState } from "react";
 import Home from "../pages/Home";
 import CoachWeekPlanner from "./CoachWeekPlanner";
 import { APP_VERSION } from "../version";
