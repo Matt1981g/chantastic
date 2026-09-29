@@ -207,7 +207,7 @@ export default function App() {
   return (
     <div className="app-shell">
       {page}
-      <BottomNav route={route} />
+      {route !== "workout" ? <BottomNav route={route} /> : null}
     </div>
   );
 }
