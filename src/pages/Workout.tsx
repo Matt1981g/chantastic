@@ -9,6 +9,7 @@ type Block = {
   instructions: string | null;
   target_effort_min: number | null;
   target_effort_max: number | null;
+  equipment_key?: string | null;
   sort_order: number;
 };
 
@@ -58,6 +59,9 @@ export default function Workout({
   const [enjoyment, setEnjoyment] = useState(7);
   const [postFeeling, setPostFeeling] = useState<Feeling>("okay");
   const [discomfort, setDiscomfort] = useState<Discomfort>("none");
+  const [actualMinutes, setActualMinutes] = useState<number | "">("");
+  const [distanceValue, setDistanceValue] = useState<number | "">("");
+  const [distanceUnit, setDistanceUnit] = useState<"m" | "km">("km");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -111,7 +115,7 @@ export default function Workout({
 
       const { data: blockData, error: blockError } = await supabase
         .from("session_blocks")
-        .select("id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,sort_order")
+        .select("id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,equipment_key,sort_order")
         .eq("session_id", cleanSession.id)
         .order("sort_order");
 
@@ -121,8 +125,15 @@ export default function Workout({
         return;
       }
 
+      const cleanBlocks = (blockData as Block[]) ?? [];
       setSession(cleanSession);
-      setBlocks((blockData as Block[]) ?? []);
+      setBlocks(cleanBlocks);
+      setActualMinutes(cleanSession.estimated_minutes);
+
+      const primaryEquipment = cleanBlocks.find((block) => block.equipment_key)?.equipment_key;
+      setDistanceUnit(
+        cleanSession.session_type === "swim" || primaryEquipment === "rower" ? "m" : "km",
+      );
 
       if (cleanSession.session_type === "swim") {
         setStage(cleanSession.status === "in_progress" ? "swim_active" : "swim_plan");
@@ -181,12 +192,15 @@ export default function Workout({
     setSaving(true);
     setMessage("");
 
-    const { error } = await supabase.rpc("complete_session_feedback", {
+    const { error } = await supabase.rpc("complete_session_feedback_v2", {
       p_session_id: session.id,
       p_effort: effort,
       p_enjoyment: enjoyment,
       p_post_feeling: postFeeling,
       p_discomfort: discomfort,
+      p_actual_minutes: actualMinutes === "" ? null : Number(actualMinutes),
+      p_distance_value: distanceValue === "" ? null : Number(distanceValue),
+      p_distance_unit: distanceValue === "" ? null : distanceUnit,
       p_notes: notes,
     });
 
@@ -277,6 +291,50 @@ export default function Workout({
         </section>
 
         <section className="feedback-card">
+          <div className="feedback-field">
+            <span>What did you actually do?</span>
+            <div className="performance-input-grid">
+              <label>
+                Time (minutes)
+                <input
+                  type="number"
+                  min={1}
+                  max={300}
+                  inputMode="numeric"
+                  value={actualMinutes}
+                  onChange={(event) =>
+                    setActualMinutes(event.target.value === "" ? "" : Number(event.target.value))
+                  }
+                />
+              </label>
+
+              <label>
+                Distance
+                <div className="distance-input">
+                  <input
+                    type="number"
+                    min={0}
+                    step={distanceUnit === "km" ? 0.01 : 1}
+                    inputMode="decimal"
+                    placeholder="Optional"
+                    value={distanceValue}
+                    onChange={(event) =>
+                      setDistanceValue(event.target.value === "" ? "" : Number(event.target.value))
+                    }
+                  />
+                  <select
+                    value={distanceUnit}
+                    onChange={(event) => setDistanceUnit(event.target.value as "m" | "km")}
+                  >
+                    <option value="km">km</option>
+                    <option value="m">m</option>
+                  </select>
+                </div>
+              </label>
+            </div>
+            <small>Use the machine or pool display. Distance can be left blank if it isn’t useful.</small>
+          </div>
+
           <label className="feedback-field">
             <span>Effort</span>
             <strong>{effort}/10</strong>
