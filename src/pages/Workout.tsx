@@ -215,9 +215,17 @@ export default function Workout({
           <span className="eyebrow">SESSION COMPLETE</span>
           <h1>Nice work.</h1>
           <p>
-            That’s it. Your feedback has been saved and your coach can see how the session went.
+            {previewSession
+              ? "Preview complete. Nothing was saved."
+              : "That’s it. Your feedback has been saved and your coach can see how the session went."}
           </p>
-          <a className="start-session-button" href="#/">Back to Today</a>
+          {onPreviewDone ? (
+            <button className="start-session-button" type="button" onClick={onPreviewDone}>
+              Back to preview
+            </button>
+          ) : (
+            <a className="start-session-button" href="#/">Back to Today</a>
+          )}
         </section>
       </main>
     );
