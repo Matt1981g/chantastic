@@ -225,7 +225,7 @@
   transform: translateX(-50%);
   width: min(100%, 560px);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.94);
