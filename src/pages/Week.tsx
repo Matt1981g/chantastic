@@ -3,6 +3,7 @@ import { supabase } from "../services/supabase";
 
 type WeekSession = {
   id: string;
+  equipment_key?: string | null;
   scheduled_date: string;
   session_type: "cardio" | "swim" | "mixed" | "strength";
   title: string;
@@ -18,12 +19,18 @@ type WeekPlan = {
   target_sessions: number;
 };
 
-const icons: Record<WeekSession["session_type"], string> = {
-  cardio: "🚴",
-  swim: "🏊",
-  mixed: "✨",
-  strength: "🏋️",
-};
+function sessionIcon(session: WeekSession) {
+  const key = session.equipment_key ?? "";
+  if (key === "treadmill") return "🚶";
+  if (key === "rower") return "🚣";
+  if (key === "bike") return "🚴";
+  if (key === "cross_trainer") return "🏃";
+  if (key === "concept2_skierg") return "⛷️";
+  if (key === "stepper") return "🪜";
+  if (session.session_type === "swim") return "🏊";
+  if (session.session_type === "strength") return "🏋️";
+  return "✨";
+}
 
 function mondayOfCurrentWeek() {
   const now = new Date();
@@ -79,8 +86,23 @@ export default function Week() {
         .order("scheduled_date")
         .order("sort_order");
 
+      const cleanSessions = (sessionData as WeekSession[]) ?? [];
+      if (cleanSessions.length) {
+        const { data: blockData } = await supabase
+          .from("session_blocks")
+          .select("session_id,equipment_key,block_type,sort_order")
+          .in("session_id", cleanSessions.map((item) => item.id))
+          .order("sort_order");
+
+        const firstEquipment = new Map<string, string>();
+        for (const block of (blockData ?? []) as Array<{session_id:string;equipment_key:string|null;block_type:string;sort_order:number}>) {
+          if (!firstEquipment.has(block.session_id) && block.equipment_key) firstEquipment.set(block.session_id, block.equipment_key);
+        }
+        cleanSessions.forEach((item) => { item.equipment_key = firstEquipment.get(item.id) ?? null; });
+      }
+
       setPlan(planData as WeekPlan);
-      setSessions((sessionData as WeekSession[]) ?? []);
+      setSessions(cleanSessions);
       setLoading(false);
     };
 
@@ -132,7 +154,7 @@ export default function Week() {
                 key={session.id}
               >
                 <div className="week-session-icon" aria-hidden="true">
-                  {icons[session.session_type]}
+                  {sessionIcon(session)}
                 </div>
                 <div className="week-session-copy">
                   <span className="week-session-day">{formatDay(session.scheduled_date)}</span>
@@ -143,7 +165,11 @@ export default function Week() {
                     {session.optional ? <span>optional</span> : null}
                   </div>
                 </div>
-                <span className={"week-status week-status--" + session.status}>
+                <div className="week-session-actions">
+                  {session.status !== "completed" ? (
+                    <a className="week-start-button" href={"#/workout?session=" + session.id}>Start session</a>
+                  ) : null}
+                  <span className={"week-status week-status--" + session.status}>
                   {session.status === "completed"
                     ? "Done"
                     : session.status === "in_progress"
@@ -151,7 +177,8 @@ export default function Week() {
                       : session.status === "skipped"
                         ? "Skipped"
                         : "Planned"}
-                </span>
+                  </span>
+                </div>
               </article>
             ))}
           </div>
