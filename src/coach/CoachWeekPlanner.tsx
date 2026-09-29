@@ -124,6 +124,7 @@ export default function CoachWeekPlanner() {
           .from("available_equipment")
           .select("equipment_key,display_name,category,active")
           .eq("active", true)
+          .eq("programming_enabled", true)
           .order("display_name"),
       ]);
 
