@@ -36,6 +36,7 @@ export default function Home({
 }) {
   const [session, setSession] = useState<Session | null>(previewSession ?? null);
   const [loading, setLoading] = useState(!previewSession);
+  const [primaryEquipment, setPrimaryEquipment] = useState<string | null>(null);
 
   useEffect(() => {
     if (previewSession) {
@@ -64,7 +65,19 @@ export default function Home({
         .limit(1)
         .maybeSingle();
 
-      setSession((data as unknown as Session | null) ?? null);
+      const clean = (data as unknown as Session | null) ?? null;
+      setSession(clean);
+      if (clean) {
+        const { data: firstBlock } = await supabase
+          .from("session_blocks")
+          .select("equipment_key,sort_order")
+          .eq("session_id", clean.id)
+          .not("equipment_key", "is", null)
+          .order("sort_order")
+          .limit(1)
+          .maybeSingle();
+        setPrimaryEquipment(firstBlock?.equipment_key ?? null);
+      }
       setLoading(false);
     };
 
@@ -105,7 +118,13 @@ export default function Home({
 
           <div className="session-preview">
             <span className="session-icon" aria-hidden="true">
-              {sessionIcons[session.session_type]}
+              {primaryEquipment === "treadmill" ? "🚶" :
+                primaryEquipment === "rower" ? "🚣" :
+                primaryEquipment === "bike" ? "🚴" :
+                primaryEquipment === "cross_trainer" ? "🏃" :
+                primaryEquipment === "concept2_skierg" ? "⛷️" :
+                primaryEquipment === "stepper" ? "🪜" :
+                sessionIcons[session.session_type]}
             </span>
             <div>
               <strong>{session.estimated_minutes} minutes</strong>
