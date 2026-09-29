@@ -1605,3 +1605,22 @@
   font-size: .84rem;
   line-height: 1.5;
 }
+
+.coach-plan-review { margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
+.coach-plan-review-heading { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+.coach-plan-review-heading h3 { margin:4px 0 0; color:var(--ink); }
+.coach-plan-summary { margin:14px 0 0; padding:13px 14px; border-radius:16px; background:var(--soft); color:var(--muted); line-height:1.5; }
+.coach-plan-session-list { display:grid; gap:12px; margin-top:14px; }
+.coach-plan-session { padding:16px; border:1px solid var(--border); border-radius:20px; background:#fff; }
+.coach-plan-session-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.coach-plan-session-heading h4 { margin:3px 0 0; color:var(--ink); font-size:1rem; }
+.coach-plan-block-list { display:grid; gap:8px; margin-top:12px; }
+.coach-plan-block { display:flex; flex-wrap:wrap; gap:6px 10px; padding:11px 12px; border-radius:14px; background:var(--soft); color:var(--muted); font-size:.78rem; }
+.coach-plan-block strong { width:100%; color:var(--ink); }
+.coach-plan-block p { width:100%; margin:2px 0 0; line-height:1.45; }
+.coach-publish-button { width:100%; margin-top:16px; }
+.coach-plan-empty { margin-top:18px; padding:24px 18px; border:1px dashed var(--border); border-radius:20px; text-align:center; background:rgba(255,255,255,.55); }
+.coach-plan-empty > span { font-size:1.6rem; }
+.coach-plan-empty h3 { margin:8px 0 0; color:var(--ink); }
+.coach-plan-empty p { margin:7px auto 0; max-width:38ch; color:var(--muted); line-height:1.5; }
+@media (max-width:540px){ .coach-plan-review-heading{flex-direction:column;} }
