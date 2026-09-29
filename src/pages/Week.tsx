@@ -147,28 +147,28 @@ export default function Week() {
     <main className="page">
       <section className="section-header">
         <span className="eyebrow">YOUR PLAN</span>
-        <h1>This Week</h1>
+        <h1>Plan</h1>
         <p className="muted">
-          {plan ? completed + " of " + sessions.length + " sessions complete" : "Your week, kept simple."}
+          {plan ? completed + " of " + sessions.length + " sessions complete" : "Your plan, kept simple."}
         </p>
       </section>
 
       {loading ? (
         <section className="empty-card">
           <span className="empty-icon" aria-hidden="true">✨</span>
-          <h2>Loading your week…</h2>
+          <h2>Loading your plan…</h2>
         </section>
       ) : !plan ? (
         <section className="empty-card">
           <span className="empty-icon" aria-hidden="true">📅</span>
           <h2>No programme published yet</h2>
-          <p>Your next week will appear here as soon as your coach publishes it.</p>
+          <p>Your next plan will appear here as soon as your coach publishes it.</p>
         </section>
       ) : (
         <>
           {plan.coach_summary ? (
             <section className="week-summary-card">
-              <span className="eyebrow">THIS WEEK</span>
+              <span className="eyebrow">YOUR PLAN</span>
               <p>{plan.coach_summary}</p>
             </section>
           ) : null}
