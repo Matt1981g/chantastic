@@ -117,6 +117,7 @@ export default function CoachWeekPlanner() {
   const [message, setMessage] = useState("");
   const [bridgeMessage, setBridgeMessage] = useState("");
   const [bridgeBusy, setBridgeBusy] = useState(false);
+  const [hasImportedPlan, setHasImportedPlan] = useState(false);
 
   useEffect(() => {
     const loadPlannerData = async () => {
@@ -460,7 +461,8 @@ export default function CoachWeekPlanner() {
       setSessions(importedSessions);
       setSaveState("idle");
       setMessage("");
-      setBridgeMessage("ChatGPT programme imported into the editor. Review it before saving or publishing.");
+      setHasImportedPlan(true);
+      setBridgeMessage("ChatGPT plan imported. Review it below, then publish when ready.");
     } catch (error) {
       setBridgeMessage(error instanceof Error ? error.message : "Could not import Coach Bridge JSON.");
     }
@@ -612,10 +614,10 @@ export default function CoachWeekPlanner() {
     <section className="planner-card">
       <div className="planner-heading">
         <div>
-          <span className="eyebrow">WEEKLY PROGRAMME</span>
-          <h2>Build Chantal’s Week</h2>
+          <span className="eyebrow">COACH WORKFLOW</span>
+          <h2>Chantal’s Plan</h2>
           <p className="muted">
-            Create the same structure ChatGPT will later import automatically.
+            Export her training data, let ChatGPT build the next plan, then import and publish it here.
           </p>
         </div>
         <span className={athlete ? "status-pill status-pill--ready" : "status-pill"}>
@@ -625,18 +627,18 @@ export default function CoachWeekPlanner() {
 
       {!athlete ? (
         <div className="planner-notice">
-          Chantal needs to sign in to Chantastic once. Her user profile will then appear here automatically.
+          Chantal needs to sign in once before training history can be exported.
         </div>
       ) : null}
-
 
       <section className="coach-bridge">
         <div className="coach-bridge-heading">
           <div>
             <span className="eyebrow">CHATGPT COACH BRIDGE</span>
-            <h3>Weekly review & programme import</h3>
+            <h3>Export → ChatGPT → Import → Publish</h3>
             <p className="muted">
-              Export the last 21 days, upload the JSON to ChatGPT, then import the returned week here.
+              No manual exercise programming needed here. The export contains Chantal’s recent sessions,
+              cardio baselines, machine settings and feedback.
             </p>
           </div>
           <span className="bridge-version">1.0</span>
@@ -649,11 +651,11 @@ export default function CoachWeekPlanner() {
             disabled={bridgeBusy || !athlete}
             onClick={() => void exportCoachBridge()}
           >
-            {bridgeBusy ? "Building export…" : "Export for ChatGPT"}
+            {bridgeBusy ? "Building export…" : "1. Export for ChatGPT"}
           </button>
 
           <label className="bridge-import-button">
-            Import ChatGPT Week
+            2. Import ChatGPT Plan
             <input
               type="file"
               accept=".json,application/json"
@@ -669,299 +671,85 @@ export default function CoachWeekPlanner() {
         {bridgeMessage ? <p className="bridge-message">{bridgeMessage}</p> : null}
       </section>
 
-      <div className="planner-toolbar">
-        <label>
-          Week starting
-          <input
-            type="date"
-            value={weekStart}
-            onChange={(event) => {
-              setWeekStart(event.target.value);
-              setSessions((current) =>
-                current.map((session, index) => ({
-                  ...session,
-                  scheduled_date: addDays(event.target.value, [0, 2, 4, 5, 6][index] ?? index),
-                })),
-              );
-            }}
-          />
-        </label>
+      {hasImportedPlan ? (
+        <section className="coach-plan-review">
+          <div className="coach-plan-review-heading">
+            <div>
+              <span className="eyebrow">IMPORTED PLAN</span>
+              <h3>Review before publishing</h3>
+            </div>
+            <div className="planner-summary">
+              <span>{targetSessions} sessions</span>
+              <span>{totalMinutes} planned minutes</span>
+              <span>Starts {weekStart}</span>
+            </div>
+          </div>
 
-        <div className="session-count-field">
-          <span>Sessions</span>
-          <div className="segmented-control">
-            {[3, 4, 5].map((count) => (
-              <button
-                key={count}
-                type="button"
-                className={targetSessions === count ? "active" : ""}
-                onClick={() => setCount(count)}
-              >
-                {count}
-              </button>
+          {coachSummary ? <p className="coach-plan-summary">{coachSummary}</p> : null}
+
+          <div className="coach-plan-session-list">
+            {sessions.map((session, sessionIndex) => (
+              <article className="coach-plan-session" key={sessionIndex}>
+                <div className="coach-plan-session-heading">
+                  <div>
+                    <span className="week-session-day">{session.scheduled_date}</span>
+                    <h4>{session.title}</h4>
+                  </div>
+                  <strong>{session.estimated_minutes} min</strong>
+                </div>
+
+                <div className="coach-plan-block-list">
+                  {session.blocks.map((block, blockIndex) => (
+                    <div className="coach-plan-block" key={blockIndex}>
+                      <strong>{blockIndex + 1}. {block.title}</strong>
+                      <span>
+                        {block.duration_minutes} min · effort {block.target_effort_min}–{block.target_effort_max}/5
+                      </span>
+                      {block.equipment_key ? <span>{block.equipment_key.replaceAll("_", " ")}</span> : null}
+                      {block.target_metric?.target_speed_kmh != null ? (
+                        <span>Target ≈ {block.target_metric.target_speed_kmh} km/h</span>
+                      ) : null}
+                      {block.target_metric?.target_distance != null ? (
+                        <span>
+                          Target {block.target_metric.target_distance} {block.target_metric.distance_unit ?? "km"}
+                        </span>
+                      ) : null}
+                      {block.target_metric?.incline_percent != null ? (
+                        <span>Incline {block.target_metric.incline_percent}%</span>
+                      ) : null}
+                      {block.target_metric?.resistance_level != null ? (
+                        <span>Level {block.target_metric.resistance_level}</span>
+                      ) : null}
+                      {block.instructions ? <p>{block.instructions}</p> : null}
+                    </div>
+                  ))}
+                </div>
+              </article>
             ))}
           </div>
-        </div>
-      </div>
 
-      <label className="full-field">
-        Coach summary
-        <textarea
-          rows={2}
-          placeholder="Optional note about the focus for this week."
-          value={coachSummary}
-          onChange={(event) => setCoachSummary(event.target.value)}
-        />
-      </label>
+          {message ? (
+            <p className={saveState === "error" ? "planner-message planner-message--error" : "planner-message"}>
+              {message}
+            </p>
+          ) : null}
 
-      <div className="planner-summary">
-        <span>{targetSessions} sessions</span>
-        <span>{totalMinutes} planned minutes</span>
-      </div>
-
-      <div className="session-editor-list">
-        {sessions.map((session, sessionIndex) => (
-          <article className="session-editor" key={sessionIndex}>
-            <div className="session-editor-heading">
-              <div>
-                <span className="eyebrow">SESSION {sessionIndex + 1}</span>
-                <input
-                  className="title-input"
-                  value={session.title}
-                  onChange={(event) => updateSession(sessionIndex, "title", event.target.value)}
-                />
-              </div>
-              <label className="optional-toggle">
-                <input
-                  type="checkbox"
-                  checked={session.optional}
-                  onChange={(event) => updateSession(sessionIndex, "optional", event.target.checked)}
-                />
-                Optional
-              </label>
-            </div>
-
-            <div className="session-fields">
-              <label>
-                Date
-                <input
-                  type="date"
-                  value={session.scheduled_date}
-                  onChange={(event) => updateSession(sessionIndex, "scheduled_date", event.target.value)}
-                />
-              </label>
-
-              <label>
-                Type
-                <select
-                  value={session.session_type}
-                  onChange={(event) => changeSessionType(sessionIndex, event.target.value as SessionType)}
-                >
-                  {Object.entries(sessionLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Minutes
-                <input
-                  type="number"
-                  min={5}
-                  max={50}
-                  value={session.estimated_minutes}
-                  onChange={(event) =>
-                    updateSession(sessionIndex, "estimated_minutes", Number(event.target.value))
-                  }
-                />
-              </label>
-            </div>
-
-            <div className="block-editor-list">
-              {session.blocks.map((block, blockIndex) => (
-                <div className="block-editor" key={blockIndex}>
-                  <div className="block-topline">
-                    <input
-                      value={block.title}
-                      onChange={(event) =>
-                        updateBlock(sessionIndex, blockIndex, "title", event.target.value)
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => removeBlock(sessionIndex, blockIndex)}
-                      aria-label={"Remove " + block.title}
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  <div className="block-fields">
-                    <label>
-                      Block
-                      <select
-                        value={block.block_type}
-                        onChange={(event) =>
-                          updateBlock(
-                            sessionIndex,
-                            blockIndex,
-                            "block_type",
-                            event.target.value as BlockDraft["block_type"],
-                          )
-                        }
-                      >
-                        <option value="warmup">Warm-up</option>
-                        <option value="cardio">Cardio</option>
-                        <option value="swim">Swim</option>
-                        <option value="strength">Strength</option>
-                        <option value="intervals">Intervals</option>
-                        <option value="cooldown">Cool-down</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </label>
-
-                    <label>
-                      Minutes
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={block.duration_minutes}
-                        onChange={(event) =>
-                          updateBlock(sessionIndex, blockIndex, "duration_minutes", Number(event.target.value))
-                        }
-                      />
-                    </label>
-
-                    <label>
-                      Effort
-                      <div className="effort-range">
-                        <input
-                          type="number"
-                          min={1}
-                          max={5}
-                          value={block.target_effort_min}
-                          onChange={(event) =>
-                            updateBlock(sessionIndex, blockIndex, "target_effort_min", Number(event.target.value))
-                          }
-                        />
-                        <span>–</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={5}
-                          value={block.target_effort_max}
-                          onChange={(event) =>
-                            updateBlock(sessionIndex, blockIndex, "target_effort_max", Number(event.target.value))
-                          }
-                        />
-                      </div>
-                    </label>
-                  </div>
-
-                  <label className="equipment-field">
-                    Equipment
-                    <select
-                      value={block.equipment_key ?? ""}
-                      onChange={(event) =>
-                        updateBlock(
-                          sessionIndex,
-                          blockIndex,
-                          "equipment_key",
-                          event.target.value || null,
-                        )
-                      }
-                    >
-                      <option value="">No equipment</option>
-                      {equipment.map((item) => (
-                        <option key={item.equipment_key} value={item.equipment_key}>
-                          {item.display_name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {block.equipment_key === "treadmill" ? (
-                    <label className="equipment-field">
-                      Target incline (%)
-                      <input
-                        type="number"
-                        min={0}
-                        max={40}
-                        step={0.5}
-                        value={block.target_metric?.incline_percent ?? ""}
-                        onChange={(event) =>
-                          updateBlock(sessionIndex, blockIndex, "target_metric", {
-                            ...(block.target_metric ?? {}),
-                            incline_percent: event.target.value === "" ? null : Number(event.target.value),
-                          })
-                        }
-                      />
-                    </label>
-                  ) : block.equipment_key && ["cross_trainer","bike","rower","concept2_skierg","stepper"].includes(block.equipment_key) ? (
-                    <label className="equipment-field">
-                      Target resistance / level
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={block.target_metric?.resistance_level ?? ""}
-                        onChange={(event) =>
-                          updateBlock(sessionIndex, blockIndex, "target_metric", {
-                            ...(block.target_metric ?? {}),
-                            resistance_level: event.target.value === "" ? null : Number(event.target.value),
-                          })
-                        }
-                      />
-                    </label>
-                  ) : null}
-
-                  <textarea
-                    rows={2}
-                    placeholder="Instructions"
-                    value={block.instructions}
-                    onChange={(event) =>
-                      updateBlock(sessionIndex, blockIndex, "instructions", event.target.value)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button className="text-button" type="button" onClick={() => addBlock(sessionIndex)}>
-              + Add block
-            </button>
-          </article>
-        ))}
-      </div>
-
-      {message ? (
-        <p className={saveState === "error" ? "planner-message planner-message--error" : "planner-message"}>
-          {message}
-        </p>
-      ) : null}
-
-      <div className="planner-actions">
-        <button
-          className="secondary-button planner-action"
-          type="button"
-          disabled={saveState === "saving"}
-          onClick={() => void savePlan("draft")}
-        >
-          Save Draft
-        </button>
-        <button
-          className="primary-button planner-action"
-          type="button"
-          disabled={saveState === "saving" || !athlete}
-          onClick={() => void savePlan("published")}
-        >
-          {saveState === "saving" ? "Saving…" : "Publish Week"}
-        </button>
-      </div>
+          <button
+            className="primary-button coach-publish-button"
+            type="button"
+            disabled={saveState === "saving" || !athlete}
+            onClick={() => void savePlan("published")}
+          >
+            {saveState === "saving" ? "Publishing…" : "3. Publish Plan"}
+          </button>
+        </section>
+      ) : (
+        <section className="coach-plan-empty">
+          <span aria-hidden="true">📥</span>
+          <h3>No imported plan waiting</h3>
+          <p>Export the latest data, upload it to ChatGPT, then import the returned plan here.</p>
+        </section>
+      )}
     </section>
   );
 }
