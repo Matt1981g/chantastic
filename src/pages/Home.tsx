@@ -1,6 +1,6 @@
 import { APP_VERSION } from "../version";
 
-export default function Home() {
+export default function Home({ displayName }: { displayName: string }) {
   return (
     <main className="page">
       <section className="brand-block" aria-labelledby="chantastic-title">
@@ -10,7 +10,7 @@ export default function Home() {
       </section>
 
       <section className="welcome-card">
-        <p className="hello">👋 Hi Chantal</p>
+        <p className="hello">👋 Hi {displayName}</p>
         <p className="welcome-copy">
           No pressure. No complicated stats. Just a clear plan for today.
         </p>
