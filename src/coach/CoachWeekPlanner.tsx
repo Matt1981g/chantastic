@@ -17,6 +17,14 @@ type BlockDraft = {
   instructions: string;
   target_effort_min: number;
   target_effort_max: number;
+  equipment_key?: string | null;
+};
+
+type Equipment = {
+  equipment_key: string;
+  display_name: string;
+  category: "cardio" | "strength" | "other";
+  active: boolean;
 };
 
 type SessionDraft = {
@@ -91,6 +99,7 @@ function makeSession(weekStart: string, index: number): SessionDraft {
 
 export default function CoachWeekPlanner() {
   const [athlete, setAthlete] = useState<Athlete | null>(null);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [weekStart, setWeekStart] = useState(mondayOfCurrentWeek);
   const [targetSessions, setTargetSessions] = useState(3);
   const [sessions, setSessions] = useState<SessionDraft[]>(() =>
@@ -103,18 +112,26 @@ export default function CoachWeekPlanner() {
   const [bridgeBusy, setBridgeBusy] = useState(false);
 
   useEffect(() => {
-    const loadAthlete = async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,display_name,email")
-        .eq("role", "user")
-        .limit(1)
-        .maybeSingle();
+    const loadPlannerData = async () => {
+      const [{ data: athleteData }, { data: equipmentData }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id,display_name,email")
+          .eq("role", "user")
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("available_equipment")
+          .select("equipment_key,display_name,category,active")
+          .eq("active", true)
+          .order("display_name"),
+      ]);
 
-      setAthlete(data ?? null);
+      setAthlete(athleteData ?? null);
+      setEquipment((equipmentData as Equipment[]) ?? []);
     };
 
-    void loadAthlete();
+    void loadPlannerData();
   }, []);
 
   const totalMinutes = useMemo(
@@ -268,7 +285,7 @@ export default function CoachWeekPlanner() {
         ? await Promise.all([
             supabase
               .from("session_blocks")
-              .select("id,session_id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,target_metric,sort_order")
+              .select("id,session_id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,target_metric,equipment_key,sort_order")
               .in("session_id", sessionIds)
               .order("sort_order"),
             supabase
@@ -293,6 +310,11 @@ export default function CoachWeekPlanner() {
       athlete: {
         display_name: athlete.display_name,
       },
+      available_equipment: equipment.map((item) => ({
+        equipment_key: item.equipment_key,
+        display_name: item.display_name,
+        category: item.category,
+      })),
       coaching_context: {
         primary_goal: "Build sustainable gym confidence and general fitness.",
         current_style: "Beginner-friendly cardio and swimming, with simple strength added only when appropriate.",
@@ -328,6 +350,7 @@ export default function CoachWeekPlanner() {
                   instructions: "string",
                   target_effort_min: "1-10",
                   target_effort_max: "1-10",
+                  equipment_key: "Use only one of the available_equipment equipment_key values, or null when no machine applies",
                 },
               ],
             },
@@ -375,6 +398,8 @@ export default function CoachWeekPlanner() {
         throw new Error("Imported programme must contain between 1 and 7 sessions.");
       }
 
+      const allowedEquipment = new Set(equipment.map((item) => item.equipment_key));
+
       for (const session of importedSessions) {
         if (!["cardio", "swim", "mixed", "strength"].includes(session.session_type)) {
           throw new Error("Imported programme contains an unsupported session type.");
@@ -382,6 +407,12 @@ export default function CoachWeekPlanner() {
 
         if (!Array.isArray(session.blocks)) {
           throw new Error("Every imported session must contain a blocks array.");
+        }
+
+        for (const block of session.blocks) {
+          if (block.equipment_key && !allowedEquipment.has(block.equipment_key)) {
+            throw new Error("Imported programme uses unavailable equipment: " + block.equipment_key);
+          }
         }
       }
 
@@ -510,6 +541,7 @@ export default function CoachWeekPlanner() {
         instructions: block.instructions || null,
         target_effort_min: Number(block.target_effort_min),
         target_effort_max: Number(block.target_effort_max),
+        equipment_key: block.equipment_key || null,
         sort_order: blockIndex,
       }));
     });
@@ -781,6 +813,28 @@ export default function CoachWeekPlanner() {
                       </div>
                     </label>
                   </div>
+
+                  <label className="equipment-field">
+                    Equipment
+                    <select
+                      value={block.equipment_key ?? ""}
+                      onChange={(event) =>
+                        updateBlock(
+                          sessionIndex,
+                          blockIndex,
+                          "equipment_key",
+                          event.target.value || null,
+                        )
+                      }
+                    >
+                      <option value="">No equipment</option>
+                      {equipment.map((item) => (
+                        <option key={item.equipment_key} value={item.equipment_key}>
+                          {item.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
                   <textarea
                     rows={2}
