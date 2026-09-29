@@ -16,6 +16,9 @@ type Feedback = {
   enjoyment: number;
   post_feeling: "great" | "okay" | "tired" | "very_tired";
   discomfort: "none" | "minor" | "yes";
+  actual_minutes: number | null;
+  distance_value: number | null;
+  distance_unit: "m" | "km" | null;
   notes: string | null;
 };
 
@@ -64,7 +67,7 @@ export default function History() {
       if (rows.length > 0) {
         const { data: feedbackData } = await supabase
           .from("session_feedback")
-          .select("session_id,effort,enjoyment,post_feeling,discomfort,notes")
+          .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,notes")
           .in("session_id", rows.map((session) => session.id));
 
         setFeedback((feedbackData as Feedback[]) ?? []);
@@ -142,6 +145,14 @@ export default function History() {
 
                 {sessionFeedback ? (
                   <div className="history-feedback-row">
+                    {sessionFeedback.actual_minutes ? (
+                      <span>Time <strong>{sessionFeedback.actual_minutes} min</strong></span>
+                    ) : null}
+                    {sessionFeedback.distance_value && sessionFeedback.distance_unit ? (
+                      <span>
+                        Distance <strong>{sessionFeedback.distance_value} {sessionFeedback.distance_unit}</strong>
+                      </span>
+                    ) : null}
                     <span>Effort <strong>{sessionFeedback.effort}/10</strong></span>
                     <span>Enjoyment <strong>{sessionFeedback.enjoyment}/10</strong></span>
                     <span>
