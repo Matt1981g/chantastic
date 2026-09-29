@@ -10,6 +10,10 @@ type Block = {
   target_effort_min: number | null;
   target_effort_max: number | null;
   equipment_key?: string | null;
+  target_metric?: {
+    resistance_level?: number | null;
+    incline_percent?: number | null;
+  } | null;
   sort_order: number;
 };
 
@@ -57,7 +61,18 @@ export default function Workout({
   const [effort, setEffort] = useState(3);
   const [enjoyment, setEnjoyment] = useState(3);
   const [feeling, setFeeling] = useState(3);
-  const [cardioTarget, setCardioTarget] = useState<{ previousDistance: number; targetDistance: number; unit: "m" | "km"; speed: number | null } | null>(null);
+  const [cardioTarget, setCardioTarget] = useState<{
+    previousDistance: number;
+    previousMinutes: number;
+    targetDistance: number;
+    unit: "m" | "km";
+    speed: number | null;
+    resistanceLevel: number | null;
+    inclinePercent: number | null;
+  } | null>(null);
+  const [cardioEquipment, setCardioEquipment] = useState<string | null>(null);
+  const [resistanceLevel, setResistanceLevel] = useState<number | "">("");
+  const [inclinePercent, setInclinePercent] = useState<number | "">("");
   const [discomfort, setDiscomfort] = useState<Discomfort>("none");
   const [actualMinutes, setActualMinutes] = useState<number | "">("");
   const [distanceValue, setDistanceValue] = useState<number | "">("");
@@ -123,7 +138,7 @@ export default function Workout({
 
       const { data: blockData, error: blockError } = await supabase
         .from("session_blocks")
-        .select("id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,equipment_key,sort_order")
+        .select("id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,target_metric,equipment_key,sort_order")
         .eq("session_id", cleanSession.id)
         .order("sort_order");
 
@@ -140,6 +155,7 @@ export default function Workout({
 
       const primaryEquipment = cleanBlocks.find((block) => block.block_type === "cardio" && block.equipment_key)?.equipment_key
         ?? cleanBlocks.find((block) => block.equipment_key)?.equipment_key;
+      setCardioEquipment(primaryEquipment ?? null);
       const preferredDistanceUnit =
         cleanSession.session_type === "swim" ||
         primaryEquipment === "rower" ||
@@ -149,40 +165,40 @@ export default function Workout({
       setDistanceUnit(preferredDistanceUnit);
 
       if (primaryEquipment) {
-        const { data: matchingBlocks } = await supabase
-          .from("session_blocks")
-          .select("session_id")
-          .eq("equipment_key", primaryEquipment);
+        const { data: previousPerformance } = await supabase
+          .from("cardio_performance")
+          .select("duration_minutes,distance_value,distance_unit,resistance_level,incline_percent,performed_at")
+          .eq("user_id", user.id)
+          .eq("equipment_key", primaryEquipment)
+          .order("performed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        const candidateIds = [...new Set((matchingBlocks ?? []).map((row: { session_id: string }) => row.session_id))]
-          .filter((id) => id !== cleanSession.id);
+        if (previousPerformance?.distance_value && previousPerformance?.duration_minutes) {
+          const previousDistance = Number(previousPerformance.distance_value);
+          const previousMinutes = Number(previousPerformance.duration_minutes);
+          const cardioMinutes = cleanBlocks
+            .filter((block) => block.block_type === "cardio" || block.block_type === "intervals" || block.block_type === "warmup")
+            .reduce((sum, block) => sum + Number(block.duration_minutes ?? 0), 0);
+          const previousKm =
+            previousPerformance.distance_unit === "m" ? previousDistance / 1000 : previousDistance;
+          const previousSpeed = previousKm / (previousMinutes / 60);
+          const speed = previousSpeed * 1.025;
+          const targetKm = speed * (cardioMinutes / 60);
+          const targetDistance =
+            previousPerformance.distance_unit === "m" ? targetKm * 1000 : targetKm;
 
-        if (candidateIds.length) {
-          const { data: previousFeedback } = await supabase
-            .from("session_feedback")
-            .select("session_id,distance_value,distance_unit,submitted_at")
-            .in("session_id", candidateIds)
-            .not("distance_value", "is", null)
-            .order("submitted_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (previousFeedback?.distance_value) {
-            const previousDistance = Number(previousFeedback.distance_value);
-            const targetDistance = previousDistance * 1.025;
-            const cardioMinutes = cleanBlocks
-              .filter((block) => block.block_type === "cardio" || block.block_type === "intervals" || block.block_type === "warmup")
-              .reduce((sum, block) => sum + Number(block.duration_minutes ?? 0), 0);
-            const kmDistance =
-              previousFeedback.distance_unit === "m" ? targetDistance / 1000 : targetDistance;
-            const speed = cardioMinutes > 0 ? kmDistance / (cardioMinutes / 60) : null;
-            setCardioTarget({
-              previousDistance,
-              targetDistance,
-              unit: previousFeedback.distance_unit as "m" | "km",
-              speed,
-            });
-          }
+          setCardioTarget({
+            previousDistance,
+            previousMinutes,
+            targetDistance,
+            unit: previousPerformance.distance_unit as "m" | "km",
+            speed,
+            resistanceLevel:
+              previousPerformance.resistance_level == null ? null : Number(previousPerformance.resistance_level),
+            inclinePercent:
+              previousPerformance.incline_percent == null ? null : Number(previousPerformance.incline_percent),
+          });
         }
       }
 
@@ -201,6 +217,7 @@ export default function Workout({
         return;
       }
 
+      setSession({ ...cleanSession, status: "in_progress" });
       setStage("active");
     };
 
@@ -217,7 +234,7 @@ export default function Workout({
   const startSwim = async () => {
     if (!session) return;
 
-    if (!previewSession) {
+    if (!previewSession && session.status === "planned") {
       const { error } = await supabase.rpc("start_session", {
         p_session_id: session.id,
       });
@@ -228,6 +245,7 @@ export default function Workout({
       }
     }
 
+    setSession((current) => current ? { ...current, status: "in_progress" } : current);
     setMessage("");
     setStage("swim_active");
   };
@@ -243,7 +261,7 @@ export default function Workout({
     setSaving(true);
     setMessage("");
 
-    const { error } = await supabase.rpc("complete_session_feedback_v2", {
+    const { error } = await supabase.rpc("complete_session_feedback_v3", {
       p_session_id: session.id,
       p_effort: effort,
       p_enjoyment: enjoyment,
@@ -256,6 +274,9 @@ export default function Workout({
       p_actual_minutes: actualMinutes === "" ? null : Number(actualMinutes),
       p_distance_value: distanceValue === "" ? null : Number(distanceValue),
       p_distance_unit: distanceValue === "" ? null : distanceUnit,
+      p_cardio_equipment_key: cardioEquipment,
+      p_resistance_level: resistanceLevel === "" ? null : Number(resistanceLevel),
+      p_incline_percent: inclinePercent === "" ? null : Number(inclinePercent),
       p_notes: notes,
     });
 
@@ -387,7 +408,22 @@ export default function Workout({
                 </div>
               </label>
             </div>
-            <small>Use the machine or pool display. Distance can be left blank if it isn’t useful.</small>
+            {cardioEquipment === "treadmill" ? (
+              <label className="cardio-setting-field">
+                Treadmill incline (%)
+                <input type="number" min={0} max={40} step={0.5} inputMode="decimal"
+                  value={inclinePercent}
+                  onChange={(event) => setInclinePercent(event.target.value === "" ? "" : Number(event.target.value))} />
+              </label>
+            ) : cardioEquipment && ["cross_trainer","bike","rower","concept2_skierg","stepper"].includes(cardioEquipment) ? (
+              <label className="cardio-setting-field">
+                Resistance / level
+                <input type="number" min={0} step={1} inputMode="decimal"
+                  value={resistanceLevel}
+                  onChange={(event) => setResistanceLevel(event.target.value === "" ? "" : Number(event.target.value))} />
+              </label>
+            ) : null}
+            <small>Use the machine display. Distance and machine setting let Chantastic plan the next target properly.</small>
           </div>
 
           <label className="feedback-field">
@@ -488,7 +524,7 @@ export default function Workout({
           </div>
 
           <div className="swim-plan-list">
-            {blocks.map((block, index) => (
+            {blocks.filter((block) => block.block_type === "swim").map((block, index) => (
               <article className="swim-plan-block" key={block.id}>
                 <span className="swim-plan-number">{index + 1}</span>
                 <div>
@@ -496,7 +532,7 @@ export default function Workout({
                   <div className="swim-plan-meta">
                     {block.duration_minutes ? <span>{block.duration_minutes} min</span> : null}
                     {block.target_effort_min && block.target_effort_max ? (
-                      <span>Effort {block.target_effort_min}–{block.target_effort_max}/10</span>
+                      <span>Effort {block.target_effort_min}–{block.target_effort_max}/5</span>
                     ) : null}
                   </div>
                   {block.instructions ? <p>{block.instructions}</p> : null}
@@ -572,7 +608,17 @@ export default function Workout({
           {cardioTarget && (currentBlock.block_type === "cardio" || currentBlock.block_type === "intervals") ? (
             <div className="progression-target">
               <strong>Next target: {cardioTarget.targetDistance.toFixed(cardioTarget.unit === "km" ? 2 : 0)} {cardioTarget.unit}</strong>
-              <span>Previous: {cardioTarget.previousDistance} {cardioTarget.unit} · +2.5%{cardioTarget.speed ? " · Aim ≈ " + cardioTarget.speed.toFixed(1) + " km/h" : ""}</span>
+              <span>
+                Previous: {cardioTarget.previousDistance} {cardioTarget.unit} in {cardioTarget.previousMinutes} min · +2.5%
+                {cardioTarget.speed ? " · Aim ≈ " + cardioTarget.speed.toFixed(1) + " km/h" : ""}
+              </span>
+              <span>
+                {cardioEquipment === "treadmill"
+                  ? "Incline: " + (cardioTarget.inclinePercent ?? 0) + "%"
+                  : cardioTarget.resistanceLevel != null
+                    ? "Keep resistance / level at " + cardioTarget.resistanceLevel
+                    : "Record the resistance / level this time to complete the baseline."}
+              </span>
             </div>
           ) : null}
 
@@ -604,7 +650,11 @@ export default function Workout({
           type="button"
           onClick={() => {
             if (blockIndex < blocks.length - 1) {
-              setBlockIndex((current) => current + 1);
+              const nextIndex = blockIndex + 1;
+              setBlockIndex(nextIndex);
+              if (blocks[nextIndex]?.block_type === "swim") {
+                setStage("swim_plan");
+              }
             } else {
               setStage("feedback");
             }
