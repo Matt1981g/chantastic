@@ -193,8 +193,8 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
                   {item.distance_value && item.distance_unit ? (
                     <span>Distance <strong>{item.distance_value} {item.distance_unit}</strong></span>
                   ) : null}
-                  <span>Effort <strong>{item.effort}/10</strong></span>
-                  <span>Enjoyment <strong>{item.enjoyment}/10</strong></span>
+                  <span>Effort <strong>{item.effort}/5</strong></span>
+                  <span>Enjoyment <strong>{item.enjoyment}/5</strong></span>
                   <span>
                     Feeling{" "}
                     <strong>
