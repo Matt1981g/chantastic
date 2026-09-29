@@ -1,0 +1,17 @@
+{
+  "name": "Chantastic",
+  "short_name": "Chantastic",
+  "description": "Simple, friendly fitness guidance for cardio, swimming and getting started.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafd",
+  "theme_color": "#fafafd",
+  "icons": [
+    {
+      "src": "/chantastic-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
