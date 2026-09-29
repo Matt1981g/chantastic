@@ -282,6 +282,40 @@
   font-size: 1.6rem;
 }
 
+.backend-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.backend-card div { min-width: 0; }
+.backend-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.backend-card strong { display: block; color: var(--ink); font-size: 0.95rem; }
+.backend-dot {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 999px;
+  background: #aaa;
+  box-shadow: 0 0 0 5px rgba(120, 120, 120, 0.08);
+}
+.backend-dot--checking { background: #d7a622; box-shadow: 0 0 0 5px rgba(215, 166, 34, 0.12); }
+.backend-dot--connected { background: #2ca36c; box-shadow: 0 0 0 5px rgba(44, 163, 108, 0.12); }
+.backend-dot--error { background: #d34d4d; box-shadow: 0 0 0 5px rgba(211, 77, 77, 0.12); }
+
 @media (max-width: 380px) {
   .page {
     padding-inline: 16px;
