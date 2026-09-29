@@ -1479,6 +1479,45 @@
   }
 }
 
+
+.performance-input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.performance-input-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 800;
+}
+
+.performance-input-grid input,
+.performance-input-grid select {
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  padding: 0 11px;
+}
+
+.distance-input {
+  display: grid;
+  grid-template-columns: 1fr 76px;
+  gap: 6px;
+}
+
+@media (max-width: 420px) {
+  .performance-input-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 380px) {
   .choice-grid--three {
     grid-template-columns: 1fr;
