@@ -36,9 +36,6 @@ export default function Home({
 }) {
   const [session, setSession] = useState<Session | null>(previewSession ?? null);
   const [loading, setLoading] = useState(!previewSession);
-  const [installPassword, setInstallPassword] = useState("");
-  const [setupStatus, setSetupStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [setupMessage, setSetupMessage] = useState("");
 
   useEffect(() => {
     if (previewSession) {
@@ -73,29 +70,6 @@ export default function Home({
 
     void loadToday();
   }, [previewSession]);
-
-  const saveInstallPassword = async () => {
-    if (installPassword.length < 8) {
-      setSetupStatus("error");
-      setSetupMessage("Use at least 8 characters.");
-      return;
-    }
-
-    setSetupStatus("saving");
-    setSetupMessage("");
-
-    const { error } = await supabase.auth.updateUser({ password: installPassword });
-
-    if (error) {
-      setSetupStatus("error");
-      setSetupMessage(error.message);
-      return;
-    }
-
-    setInstallPassword("");
-    setSetupStatus("saved");
-    setSetupMessage("Home Screen sign-in is ready.");
-  };
 
   return (
     <main className="page">
@@ -165,27 +139,6 @@ export default function Home({
         </section>
       )}
 
-      {!previewSession ? (
-        <details className="install-setup">
-          <summary>📱 Set up the Home Screen app</summary>
-          <p>Do this once in Safari. Choose a Chantastic password, then use the same email and password when opening the Home Screen icon.</p>
-          <label>
-            Chantastic password
-            <input
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="8+ characters"
-              value={installPassword}
-              onChange={(event) => setInstallPassword(event.target.value)}
-            />
-          </label>
-          <button type="button" className="primary-button" onClick={() => void saveInstallPassword()} disabled={setupStatus === "saving"}>
-            {setupStatus === "saving" ? "Saving…" : "Enable Home Screen sign-in"}
-          </button>
-          {setupMessage ? <p className={setupStatus === "error" ? "setup-message setup-message--error" : "setup-message"}>{setupMessage}</p> : null}
-        </details>
-      ) : null}
 
       <p className="version">Chantastic V{APP_VERSION}</p>
     </main>
