@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import CoachWeekPlanner from "./CoachWeekPlanner";
 import { APP_VERSION } from "../version";
 
 type BackendState = "checking" | "connected" | "error";
@@ -69,11 +70,7 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
         </article>
       </section>
 
-      <section className="empty-card">
-        <span className="empty-icon" aria-hidden="true">🛠️</span>
-        <h2>Coach dashboard ready</h2>
-        <p>Authentication is active. Programme controls come next.</p>
-      </section>
+      <CoachWeekPlanner />
 
       <button className="secondary-button" type="button" onClick={() => void onSignOut()}>
         Sign out
