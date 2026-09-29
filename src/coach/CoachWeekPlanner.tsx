@@ -290,7 +290,7 @@ export default function CoachWeekPlanner() {
               .order("sort_order"),
             supabase
               .from("session_feedback")
-              .select("session_id,effort,enjoyment,post_feeling,discomfort,notes,submitted_at")
+              .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,notes,submitted_at")
               .in("session_id", sessionIds),
           ])
         : [
