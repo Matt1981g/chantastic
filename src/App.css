@@ -738,6 +738,61 @@
   }
 }
 
+
+.today-card--ready {
+  overflow: hidden;
+}
+
+.start-session-button,
+.preview-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  border: 0;
+  border-radius: 16px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.start-session-button {
+  margin-top: 18px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.preview-button {
+  width: 100%;
+  margin: 16px 0 0;
+  background: #242535;
+  color: #fff;
+}
+
+.coach-preview-frame {
+  margin: 12px 0 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.coach-preview-frame .page {
+  min-height: auto;
+  padding-bottom: 36px;
+}
+
+.coach-preview-bar {
+  padding: 9px 12px;
+  background: #242535;
+  color: #fff;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
 @media (max-width: 380px) {
   .page {
     padding-inline: 16px;
