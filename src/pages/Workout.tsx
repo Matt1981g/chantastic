@@ -30,7 +30,15 @@ function localDateString() {
   return local.toISOString().slice(0, 10);
 }
 
-export default function Workout() {
+export default function Workout({
+  previewSession,
+  previewBlocks,
+  onPreviewDone,
+}: {
+  previewSession?: Session;
+  previewBlocks?: Block[];
+  onPreviewDone?: () => void;
+} = {}) {
   const [stage, setStage] = useState<Stage>("loading");
   const [session, setSession] = useState<Session | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -45,6 +53,13 @@ export default function Workout() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (previewSession) {
+      setSession(previewSession);
+      setBlocks(previewBlocks ?? []);
+      setStage("active");
+      return;
+    }
+
     const loadSession = async () => {
       const {
         data: { user },
@@ -113,7 +128,7 @@ export default function Workout() {
     };
 
     void loadSession();
-  }, []);
+  }, [previewSession, previewBlocks]);
 
   const currentBlock = blocks[blockIndex] ?? null;
   const progress = useMemo(() => {
@@ -123,6 +138,11 @@ export default function Workout() {
 
   const submitFeedback = async () => {
     if (!session) return;
+
+    if (previewSession) {
+      setStage("done");
+      return;
+    }
 
     setSaving(true);
     setMessage("");
@@ -164,7 +184,11 @@ export default function Workout() {
           <span className="empty-icon" aria-hidden="true">🌿</span>
           <h2>No session today</h2>
           <p>Enjoy the easy day. Your next planned session will appear automatically.</p>
-          <a className="start-session-button" href="#/">Back to Today</a>
+          {onPreviewDone ? (
+            <button className="start-session-button" type="button" onClick={onPreviewDone}>Back to preview</button>
+          ) : (
+            <a className="start-session-button" href="#/">Back to Today</a>
+          )}
         </section>
       </main>
     );
