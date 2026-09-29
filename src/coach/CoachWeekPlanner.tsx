@@ -53,13 +53,6 @@ type CoachImport = {
   };
 };
 
-const sessionLabels: Record<SessionType, string> = {
-  cardio: "Cardio",
-  swim: "Swim",
-  mixed: "Mixed cardio",
-  strength: "Strength",
-};
-
 function mondayOfCurrentWeek() {
   const now = new Date();
   const day = now.getDay();
@@ -74,44 +67,12 @@ function addDays(date: string, days: number) {
   return value.toISOString().slice(0, 10);
 }
 
-function defaultBlocks(type: SessionType): BlockDraft[] {
-  if (type === "swim") {
-    return [
-      { title: "Easy warm-up", block_type: "warmup", duration_minutes: 5, instructions: "Relaxed swimming, any comfortable stroke.", target_effort_min: 2, target_effort_max: 4 },
-      { title: "Steady swim", block_type: "swim", duration_minutes: 35, instructions: "Comfortable continuous swimming. Rest whenever needed.", target_effort_min: 4, target_effort_max: 6 },
-      { title: "Cool-down", block_type: "cooldown", duration_minutes: 5, instructions: "Very easy swimming.", target_effort_min: 1, target_effort_max: 3 },
-    ];
-  }
-
-  return [
-    { title: "Warm-up", block_type: "warmup", duration_minutes: 5, instructions: "Easy pace.", target_effort_min: 2, target_effort_max: 4 },
-    { title: "Main work", block_type: type === "strength" ? "strength" : "cardio", duration_minutes: 35, instructions: "Comfortable, controlled work.", target_effort_min: 4, target_effort_max: 6 },
-    { title: "Cool-down", block_type: "cooldown", duration_minutes: 5, instructions: "Reduce the pace gradually.", target_effort_min: 1, target_effort_max: 3 },
-  ];
-}
-
-function makeSession(weekStart: string, index: number): SessionDraft {
-  const offsets = [0, 2, 4, 5, 6];
-  const type: SessionType = index === 1 ? "swim" : "cardio";
-
-  return {
-    scheduled_date: addDays(weekStart, offsets[index] ?? index),
-    session_type: type,
-    title: type === "swim" ? "Easy Swim" : "Cardio Session",
-    estimated_minutes: 50,
-    optional: index >= 3,
-    blocks: defaultBlocks(type),
-  };
-}
-
 export default function CoachWeekPlanner() {
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [weekStart, setWeekStart] = useState(mondayOfCurrentWeek);
   const [targetSessions, setTargetSessions] = useState(3);
-  const [sessions, setSessions] = useState<SessionDraft[]>(() =>
-    Array.from({ length: 3 }, (_, index) => makeSession(mondayOfCurrentWeek(), index)),
-  );
+  const [sessions, setSessions] = useState<SessionDraft[]>([]);
   const [coachSummary, setCoachSummary] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -148,103 +109,11 @@ export default function CoachWeekPlanner() {
     [sessions],
   );
 
-  const setCount = (count: number) => {
-    setTargetSessions(count);
-    setSessions((current) => {
-      if (current.length === count) return current;
-      if (current.length > count) return current.slice(0, count);
 
-      return [
-        ...current,
-        ...Array.from({ length: count - current.length }, (_, index) =>
-          makeSession(weekStart, current.length + index),
-        ),
-      ];
-    });
-  };
 
-  const updateSession = <K extends keyof SessionDraft>(
-    index: number,
-    key: K,
-    value: SessionDraft[K],
-  ) => {
-    setSessions((current) =>
-      current.map((session, sessionIndex) =>
-        sessionIndex === index ? { ...session, [key]: value } : session,
-      ),
-    );
-  };
 
-  const updateBlock = <K extends keyof BlockDraft>(
-    sessionIndex: number,
-    blockIndex: number,
-    key: K,
-    value: BlockDraft[K],
-  ) => {
-    setSessions((current) =>
-      current.map((session, currentSessionIndex) => {
-        if (currentSessionIndex !== sessionIndex) return session;
 
-        return {
-          ...session,
-          blocks: session.blocks.map((block, currentBlockIndex) =>
-            currentBlockIndex === blockIndex ? { ...block, [key]: value } : block,
-          ),
-        };
-      }),
-    );
-  };
 
-  const changeSessionType = (index: number, type: SessionType) => {
-    setSessions((current) =>
-      current.map((session, sessionIndex) =>
-        sessionIndex === index
-          ? {
-              ...session,
-              session_type: type,
-              title: sessionLabels[type] + " Session",
-              blocks: defaultBlocks(type),
-            }
-          : session,
-      ),
-    );
-  };
-
-  const addBlock = (sessionIndex: number) => {
-    setSessions((current) =>
-      current.map((session, index) =>
-        index === sessionIndex
-          ? {
-              ...session,
-              blocks: [
-                ...session.blocks,
-                {
-                  title: "New block",
-                  block_type: "other",
-                  duration_minutes: 10,
-                  instructions: "",
-                  target_effort_min: 4,
-                  target_effort_max: 6,
-                },
-              ],
-            }
-          : session,
-      ),
-    );
-  };
-
-  const removeBlock = (sessionIndex: number, blockIndex: number) => {
-    setSessions((current) =>
-      current.map((session, index) =>
-        index === sessionIndex
-          ? {
-              ...session,
-              blocks: session.blocks.filter((_, currentBlockIndex) => currentBlockIndex !== blockIndex),
-            }
-          : session,
-      ),
-    );
-  };
 
 
   const exportCoachBridge = async () => {
