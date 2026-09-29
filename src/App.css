@@ -1542,3 +1542,18 @@
     grid-template-columns: 1fr;
   }
 }
+
+.install-setup {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(255,255,255,.9);
+}
+.install-setup summary { cursor: pointer; color: var(--ink); font-weight: 850; }
+.install-setup > p { color: var(--muted); line-height: 1.5; font-size: .88rem; }
+.install-setup label { display: grid; gap: 7px; color: var(--ink); font-size: .8rem; font-weight: 800; }
+.install-setup input { min-height: 48px; padding: 0 13px; border: 1px solid var(--border); border-radius: 14px; font: inherit; }
+.install-setup .primary-button { width: 100%; margin-top: 10px; }
+.setup-message { margin: 10px 0 0; color: #237c54; font-size: .84rem; font-weight: 750; }
+.setup-message--error { color: #a33b3b; }
