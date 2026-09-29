@@ -986,6 +986,155 @@
   line-height: 1.6;
 }
 
+
+.swim-plan-card,
+.swim-active-card {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.swim-plan-card {
+  padding: 22px;
+}
+
+.swim-phone-note {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--soft);
+}
+
+.swim-phone-note > span {
+  font-size: 1.5rem;
+}
+
+.swim-phone-note strong,
+.swim-phone-note p {
+  display: block;
+}
+
+.swim-phone-note strong {
+  color: var(--ink);
+}
+
+.swim-phone-note p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.swim-plan-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.swim-plan-block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.swim-plan-number {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.swim-plan-block h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.swim-plan-block p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.swim-plan-meta {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.swim-plan-meta span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.swim-main-button {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.swim-active-page {
+  display: grid;
+  align-content: center;
+  min-height: 100svh;
+}
+
+.swim-active-card {
+  padding: 34px 24px;
+  text-align: center;
+}
+
+.swim-active-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  background: var(--soft);
+  font-size: 2rem;
+}
+
+.swim-active-card h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 2rem;
+}
+
+.swim-active-card p {
+  margin: 10px auto 0;
+  max-width: 28ch;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.swim-stop-button {
+  width: 100%;
+  min-height: 58px;
+  margin-top: 24px;
+  border: 0;
+  border-radius: 18px;
+  background: #242535;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 @media (max-width: 380px) {
   .choice-grid--three {
     grid-template-columns: 1fr;
