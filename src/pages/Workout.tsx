@@ -132,7 +132,11 @@ export default function Workout({
 
       const primaryEquipment = cleanBlocks.find((block) => block.equipment_key)?.equipment_key;
       setDistanceUnit(
-        cleanSession.session_type === "swim" || primaryEquipment === "rower" ? "m" : "km",
+        cleanSession.session_type === "swim" ||
+          primaryEquipment === "rower" ||
+          primaryEquipment === "concept2_skierg"
+          ? "m"
+          : "km",
       );
 
       if (cleanSession.session_type === "swim") {
