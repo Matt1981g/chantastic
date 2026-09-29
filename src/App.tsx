@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CoachDashboard from "./coach/CoachDashboard";
 import History from "./pages/History";
 import Home from "./pages/Home";
+import Login from "./pages/Login";
 import Week from "./pages/Week";
 import Workout from "./pages/Workout";
+import { supabase } from "./services/supabase";
 import "./App.css";
 
 type RouteName = "today" | "week" | "history" | "workout" | "coach";
+type AuthState = "loading" | "signedOut" | "signedIn" | "denied";
+
+type Profile = {
+  id: string;
+  email: string;
+  display_name: string;
+  role: "coach" | "user";
+};
 
 function getRoute(): RouteName {
   if (window.location.pathname === "/coach") {
@@ -48,8 +58,82 @@ function BottomNav({ route }: { route: RouteName }) {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <main className="page auth-page">
+      <section className="auth-card auth-card--compact">
+        <span className="auth-icon" aria-hidden="true">✨</span>
+        <h2>Opening Chantastic…</h2>
+      </section>
+    </main>
+  );
+}
+
+function AccessDenied({ onSignOut }: { onSignOut: () => Promise<void> }) {
+  return (
+    <main className="page auth-page">
+      <section className="auth-card">
+        <span className="auth-icon" aria-hidden="true">🔒</span>
+        <h2>Access not enabled</h2>
+        <p className="muted">
+          This account isn’t approved for Chantastic.
+        </p>
+        <button className="secondary-button" type="button" onClick={() => void onSignOut()}>
+          Sign out
+        </button>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [route, setRoute] = useState<RouteName>(getRoute);
+  const [authState, setAuthState] = useState<AuthState>("loading");
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  const loadIdentity = useCallback(async () => {
+    const {
+      data: { claims },
+      error: claimsError,
+    } = await supabase.auth.getClaims();
+
+    if (claimsError || !claims?.sub) {
+      setProfile(null);
+      setAuthState("signedOut");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,email,display_name,role")
+      .eq("id", claims.sub)
+      .single();
+
+    if (error || !data) {
+      setProfile(null);
+      setAuthState("denied");
+      return;
+    }
+
+    setProfile(data as Profile);
+    setAuthState("signedIn");
+
+    if (data.role === "coach" && getRoute() === "today") {
+      window.location.hash = "/coach";
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadIdentity();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadIdentity();
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadIdentity]);
 
   useEffect(() => {
     const handleRouteChange = () => setRoute(getRoute());
@@ -63,16 +147,55 @@ export default function App() {
     };
   }, []);
 
-  if (route === "coach") {
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    window.location.hash = "/";
+    setProfile(null);
+    setAuthState("signedOut");
+  };
+
+  if (authState === "loading") {
     return (
       <div className="app-shell">
-        <CoachDashboard />
+        <LoadingScreen />
+      </div>
+    );
+  }
+
+  if (authState === "signedOut") {
+    return (
+      <div className="app-shell">
+        <Login />
+      </div>
+    );
+  }
+
+  if (authState === "denied" || !profile) {
+    return (
+      <div className="app-shell">
+        <AccessDenied onSignOut={signOut} />
+      </div>
+    );
+  }
+
+  if (route === "coach") {
+    if (profile.role !== "coach") {
+      return (
+        <div className="app-shell">
+          <AccessDenied onSignOut={signOut} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="app-shell">
+        <CoachDashboard onSignOut={signOut} />
       </div>
     );
   }
 
   const page = {
-    today: <Home />,
+    today: <Home displayName={profile.display_name} />,
     week: <Week />,
     history: <History />,
     workout: <Workout />,
