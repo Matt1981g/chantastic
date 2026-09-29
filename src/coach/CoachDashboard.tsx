@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../services/supabase";
 import Home from "../pages/Home";
+import Workout from "../pages/Workout";
 import CoachWeekPlanner from "./CoachWeekPlanner";
 import { APP_VERSION } from "../version";
 
@@ -32,6 +33,7 @@ function sundayOfCurrentWeek() {
 
 export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [showPreview, setShowPreview] = useState(false);
+  const [previewWorkout, setPreviewWorkout] = useState(false);
   const [backendState, setBackendState] = useState<BackendState>("checking");
   const [backendMessage, setBackendMessage] = useState("Checking Chantastic backend…");
   const [sessions, setSessions] = useState<SessionRow[]>([]);
@@ -118,7 +120,10 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
       <button
         className="preview-button"
         type="button"
-        onClick={() => setShowPreview((current) => !current)}
+        onClick={() => {
+          setShowPreview((current) => !current);
+          setPreviewWorkout(false);
+        }}
       >
         {showPreview ? "Close Chantal Preview" : "Preview Chantal App"}
       </button>
@@ -126,18 +131,64 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
       {showPreview ? (
         <div className="coach-preview-frame">
           <div className="coach-preview-bar">PREVIEW — not saved to Supabase</div>
-          <Home
-            displayName="Chantal"
-            previewSession={{
-              id: "preview",
-              scheduled_date: new Date().toISOString().slice(0, 10),
-              session_type: "swim",
-              title: "Easy Swim",
-              estimated_minutes: 50,
-              optional: false,
-              status: "planned",
-            }}
-          />
+          {previewWorkout ? (
+            <Workout
+              previewSession={{
+                id: "preview",
+                title: "Easy Swim",
+                session_type: "swim",
+                estimated_minutes: 50,
+                status: "planned",
+              }}
+              previewBlocks={[
+                {
+                  id: "preview-warmup",
+                  block_type: "warmup",
+                  title: "Easy warm-up",
+                  duration_minutes: 5,
+                  instructions: "Relaxed swimming, any comfortable stroke.",
+                  target_effort_min: 2,
+                  target_effort_max: 4,
+                  sort_order: 0,
+                },
+                {
+                  id: "preview-main",
+                  block_type: "swim",
+                  title: "Steady swim",
+                  duration_minutes: 35,
+                  instructions: "Comfortable continuous swimming. Rest whenever needed.",
+                  target_effort_min: 4,
+                  target_effort_max: 6,
+                  sort_order: 1,
+                },
+                {
+                  id: "preview-cooldown",
+                  block_type: "cooldown",
+                  title: "Cool-down",
+                  duration_minutes: 5,
+                  instructions: "Very easy swimming.",
+                  target_effort_min: 1,
+                  target_effort_max: 3,
+                  sort_order: 2,
+                },
+              ]}
+              onPreviewDone={() => setPreviewWorkout(false)}
+            />
+          ) : (
+            <Home
+              displayName="Chantal"
+              previewSession={{
+                id: "preview",
+                scheduled_date: new Date().toISOString().slice(0, 10),
+                session_type: "swim",
+                title: "Easy Swim",
+                estimated_minutes: 50,
+                optional: false,
+                status: "planned",
+              }}
+              onStartPreview={() => setPreviewWorkout(true)}
+            />
+          )}
         </div>
       ) : null}
 
