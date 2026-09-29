@@ -37,6 +37,7 @@ export default function Login() {
   return (
     <main className="page auth-page">
       <section className="brand-block" aria-labelledby="login-title">
+        <img className="brand-logo" src="/chantastic-icon.svg" alt="" aria-hidden="true" />
         <p className="brand-kicker">YOUR FITNESS, YOUR PACE</p>
         <h1 id="login-title">CHANTASTIC</h1>
         <p className="tagline">Just show up.</p>
