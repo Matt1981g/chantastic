@@ -45,7 +45,7 @@ export default function Login() {
 
     const { error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: new URL(import.meta.env.BASE_URL, window.location.href).href },
     });
 
     if (error) {
