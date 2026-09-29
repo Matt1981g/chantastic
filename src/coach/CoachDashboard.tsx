@@ -19,6 +19,9 @@ type FeedbackRow = {
   enjoyment: number;
   post_feeling: "great" | "okay" | "tired" | "very_tired";
   discomfort: "none" | "minor" | "yes";
+  actual_minutes: number | null;
+  distance_value: number | null;
+  distance_unit: "m" | "km" | null;
   notes: string | null;
   submitted_at: string;
   sessions: {
@@ -65,7 +68,7 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
             .lte("scheduled_date", sundayOfCurrentWeek()),
           supabase
             .from("session_feedback")
-            .select("session_id,effort,enjoyment,post_feeling,discomfort,notes,submitted_at,sessions(title,scheduled_date,session_type,estimated_minutes)")
+            .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,notes,submitted_at,sessions(title,scheduled_date,session_type,estimated_minutes)")
             .order("submitted_at", { ascending: false })
             .limit(10),
         ]);
@@ -184,6 +187,12 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
                 </div>
 
                 <div className="coach-feedback-metrics">
+                  {item.actual_minutes ? (
+                    <span>Time <strong>{item.actual_minutes} min</strong></span>
+                  ) : null}
+                  {item.distance_value && item.distance_unit ? (
+                    <span>Distance <strong>{item.distance_value} {item.distance_unit}</strong></span>
+                  ) : null}
                   <span>Effort <strong>{item.effort}/10</strong></span>
                   <span>Enjoyment <strong>{item.enjoyment}/10</strong></span>
                   <span>
