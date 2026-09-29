@@ -1553,3 +1553,55 @@
 @media (max-width:420px) {
   .week-session-actions { grid-column:2; align-items:flex-start; }
 }
+
+.week-preview-button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+.week-session-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.week-preview-block {
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: var(--soft);
+}
+.week-preview-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+}
+.week-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+.week-preview-meta span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.week-preview-block p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: .84rem;
+  line-height: 1.5;
+}
