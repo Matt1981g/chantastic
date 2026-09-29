@@ -31,7 +31,6 @@ type Stage =
   | "empty"
   | "error";
 
-type Feeling = "great" | "okay" | "tired" | "very_tired";
 type Discomfort = "none" | "minor" | "yes";
 
 function localDateString() {
@@ -55,9 +54,10 @@ export default function Workout({
   const [blockIndex, setBlockIndex] = useState(0);
   const [message, setMessage] = useState("");
 
-  const [effort, setEffort] = useState(6);
-  const [enjoyment, setEnjoyment] = useState(7);
-  const [postFeeling, setPostFeeling] = useState<Feeling>("okay");
+  const [effort, setEffort] = useState(3);
+  const [enjoyment, setEnjoyment] = useState(3);
+  const [feeling, setFeeling] = useState(3);
+  const [cardioTarget, setCardioTarget] = useState<{ previousDistance: number; targetDistance: number; unit: "m" | "km"; speed: number | null } | null>(null);
   const [discomfort, setDiscomfort] = useState<Discomfort>("none");
   const [actualMinutes, setActualMinutes] = useState<number | "">("");
   const [distanceValue, setDistanceValue] = useState<number | "">("");
@@ -84,11 +84,19 @@ export default function Workout({
         return;
       }
 
-      const { data: sessionData, error: sessionError } = await supabase
+      const hashQuery = window.location.hash.split("?")[1] ?? "";
+      const requestedSessionId = new URLSearchParams(hashQuery).get("session");
+
+      let sessionQuery = supabase
         .from("sessions")
         .select("id,title,session_type,estimated_minutes,status,weekly_plans!inner(status)")
-        .eq("user_id", user.id)
-        .eq("scheduled_date", localDateString())
+        .eq("user_id", user.id);
+
+      sessionQuery = requestedSessionId
+        ? sessionQuery.eq("id", requestedSessionId)
+        : sessionQuery.eq("scheduled_date", localDateString());
+
+      const { data: sessionData, error: sessionError } = await sessionQuery
         .eq("weekly_plans.status", "published")
         .order("sort_order")
         .limit(1)
@@ -130,14 +138,53 @@ export default function Workout({
       setBlocks(cleanBlocks);
       setActualMinutes(cleanSession.estimated_minutes);
 
-      const primaryEquipment = cleanBlocks.find((block) => block.equipment_key)?.equipment_key;
-      setDistanceUnit(
+      const primaryEquipment = cleanBlocks.find((block) => block.block_type === "cardio" && block.equipment_key)?.equipment_key
+        ?? cleanBlocks.find((block) => block.equipment_key)?.equipment_key;
+      const preferredDistanceUnit =
         cleanSession.session_type === "swim" ||
-          primaryEquipment === "rower" ||
-          primaryEquipment === "concept2_skierg"
+        primaryEquipment === "rower" ||
+        primaryEquipment === "concept2_skierg"
           ? "m"
-          : "km",
-      );
+          : "km";
+      setDistanceUnit(preferredDistanceUnit);
+
+      if (primaryEquipment) {
+        const { data: matchingBlocks } = await supabase
+          .from("session_blocks")
+          .select("session_id")
+          .eq("equipment_key", primaryEquipment);
+
+        const candidateIds = [...new Set((matchingBlocks ?? []).map((row: { session_id: string }) => row.session_id))]
+          .filter((id) => id !== cleanSession.id);
+
+        if (candidateIds.length) {
+          const { data: previousFeedback } = await supabase
+            .from("session_feedback")
+            .select("session_id,distance_value,distance_unit,submitted_at")
+            .in("session_id", candidateIds)
+            .not("distance_value", "is", null)
+            .order("submitted_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (previousFeedback?.distance_value) {
+            const previousDistance = Number(previousFeedback.distance_value);
+            const targetDistance = previousDistance * 1.025;
+            const cardioMinutes = cleanBlocks
+              .filter((block) => block.block_type === "cardio" || block.block_type === "intervals" || block.block_type === "warmup")
+              .reduce((sum, block) => sum + Number(block.duration_minutes ?? 0), 0);
+            const kmDistance =
+              previousFeedback.distance_unit === "m" ? targetDistance / 1000 : targetDistance;
+            const speed = cardioMinutes > 0 ? kmDistance / (cardioMinutes / 60) : null;
+            setCardioTarget({
+              previousDistance,
+              targetDistance,
+              unit: previousFeedback.distance_unit as "m" | "km",
+              speed,
+            });
+          }
+        }
+      }
 
       if (cleanSession.session_type === "swim") {
         setStage(cleanSession.status === "in_progress" ? "swim_active" : "swim_plan");
@@ -200,7 +247,11 @@ export default function Workout({
       p_session_id: session.id,
       p_effort: effort,
       p_enjoyment: enjoyment,
-      p_post_feeling: postFeeling,
+      p_post_feeling:
+        feeling >= 5 ? "great" :
+        feeling === 4 ? "great" :
+        feeling === 3 ? "okay" :
+        feeling === 2 ? "tired" : "very_tired",
       p_discomfort: discomfort,
       p_actual_minutes: actualMinutes === "" ? null : Number(actualMinutes),
       p_distance_value: distanceValue === "" ? null : Number(distanceValue),
@@ -303,11 +354,11 @@ export default function Workout({
                 <input
                   type="number"
                   min={1}
-                  max={300}
+                  max={50}
                   inputMode="numeric"
                   value={actualMinutes}
                   onChange={(event) =>
-                    setActualMinutes(event.target.value === "" ? "" : Number(event.target.value))
+                    setActualMinutes(event.target.value === "" ? "" : Math.min(50, Number(event.target.value)))
                   }
                 />
               </label>
@@ -341,49 +392,35 @@ export default function Workout({
 
           <label className="feedback-field">
             <span>Effort</span>
-            <strong>{effort}/10</strong>
+            <strong>{effort}/5</strong>
             <input
               type="range"
               min={1}
-              max={10}
+              max={5}
               value={effort}
               onChange={(event) => setEffort(Number(event.target.value))}
             />
-            <small>1 = very easy · 10 = maximum effort</small>
+            <small>1 = very easy · 2 = easy · 3 = moderate · 4 = hard · 5 = maximum</small>
           </label>
 
           <label className="feedback-field">
             <span>Enjoyment</span>
-            <strong>{enjoyment}/10</strong>
+            <strong>{enjoyment}/5</strong>
             <input
               type="range"
               min={1}
-              max={10}
+              max={5}
               value={enjoyment}
               onChange={(event) => setEnjoyment(Number(event.target.value))}
             />
           </label>
 
-          <div className="feedback-field">
+          <label className="feedback-field">
             <span>How do you feel now?</span>
-            <div className="choice-grid">
-              {[
-                ["great", "😊 Great"],
-                ["okay", "🙂 Okay"],
-                ["tired", "😮‍💨 Tired"],
-                ["very_tired", "🥱 Very tired"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={postFeeling === value ? "active" : ""}
-                  onClick={() => setPostFeeling(value as Feeling)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+            <strong>{feeling}/5</strong>
+            <input type="range" min={1} max={5} value={feeling} onChange={(event) => setFeeling(Number(event.target.value))} />
+            <small>1 = exhausted · 2 = tired · 3 = okay · 4 = good · 5 = great</small>
+          </label>
 
           <div className="feedback-field">
             <span>Any discomfort?</span>
@@ -404,6 +441,8 @@ export default function Workout({
               ))}
             </div>
           </div>
+
+          <small className="slider-guide">Enjoyment: 1 = hated it · 2 = disliked it · 3 = neutral · 4 = enjoyed it · 5 = loved it</small>
 
           <label className="feedback-field">
             <span>Anything else?</span>
@@ -510,13 +549,15 @@ export default function Workout({
             Step {blockIndex + 1} of {blocks.length}
           </div>
           <span className="workout-block-icon" aria-hidden="true">
-            {currentBlock.block_type === "warmup"
-              ? "🌤️"
-              : currentBlock.block_type === "cooldown"
-                ? "🌿"
-                : currentBlock.block_type === "strength"
-                  ? "🏋️"
-                  : "🚴"}
+            {currentBlock.equipment_key === "treadmill" ? "🚶" :
+             currentBlock.equipment_key === "rower" ? "🚣" :
+             currentBlock.equipment_key === "bike" ? "🚴" :
+             currentBlock.equipment_key === "cross_trainer" ? "🏃" :
+             currentBlock.equipment_key === "concept2_skierg" ? "⛷️" :
+             currentBlock.equipment_key === "stepper" ? "🪜" :
+             currentBlock.block_type === "swim" ? "🏊" :
+             currentBlock.block_type === "strength" ? "🏋️" :
+             currentBlock.block_type === "cooldown" ? "🌿" : "✨"}
           </span>
           <h2>{currentBlock.title}</h2>
 
@@ -526,6 +567,13 @@ export default function Workout({
 
           {currentBlock.instructions ? (
             <p className="workout-instructions">{currentBlock.instructions}</p>
+          ) : null}
+
+          {cardioTarget && (currentBlock.block_type === "cardio" || currentBlock.block_type === "intervals") ? (
+            <div className="progression-target">
+              <strong>Next target: {cardioTarget.targetDistance.toFixed(cardioTarget.unit === "km" ? 2 : 0)} {cardioTarget.unit}</strong>
+              <span>Previous: {cardioTarget.previousDistance} {cardioTarget.unit} · +2.5%{cardioTarget.speed ? " · Aim ≈ " + cardioTarget.speed.toFixed(1) + " km/h" : ""}</span>
+            </div>
           ) : null}
 
           {currentBlock.target_effort_min && currentBlock.target_effort_max ? (
