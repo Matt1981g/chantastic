@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../services/supabase";
 import Home from "../pages/Home";
 import CoachWeekPlanner from "./CoachWeekPlanner";
@@ -6,39 +6,82 @@ import { APP_VERSION } from "../version";
 
 type BackendState = "checking" | "connected" | "error";
 
+type SessionRow = {
+  id: string;
+  status: "planned" | "in_progress" | "completed" | "skipped";
+  scheduled_date: string;
+};
+
+type FeedbackRow = {
+  discomfort: "none" | "minor" | "yes";
+};
+
+function mondayOfCurrentWeek() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  now.setDate(now.getDate() + diff);
+  return now.toISOString().slice(0, 10);
+}
+
+function sundayOfCurrentWeek() {
+  const monday = new Date(mondayOfCurrentWeek() + "T12:00:00");
+  monday.setDate(monday.getDate() + 6);
+  return monday.toISOString().slice(0, 10);
+}
+
 export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [showPreview, setShowPreview] = useState(false);
   const [backendState, setBackendState] = useState<BackendState>("checking");
   const [backendMessage, setBackendMessage] = useState("Checking Chantastic backend…");
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
 
   useEffect(() => {
     let mounted = true;
 
-    const checkBackend = async () => {
-      const { data, error } = await supabase
-        .from("app_status")
-        .select("app_name,status")
-        .eq("id", 1)
-        .single();
+    const loadDashboard = async () => {
+      const [{ data: statusData, error: statusError }, { data: sessionData }, { data: feedbackData }] =
+        await Promise.all([
+          supabase.from("app_status").select("app_name,status").eq("id", 1).single(),
+          supabase
+            .from("sessions")
+            .select("id,status,scheduled_date")
+            .gte("scheduled_date", mondayOfCurrentWeek())
+            .lte("scheduled_date", sundayOfCurrentWeek()),
+          supabase.from("session_feedback").select("discomfort"),
+        ]);
 
       if (!mounted) return;
 
-      if (error || data?.status !== "connected") {
+      if (statusError || statusData?.status !== "connected") {
         setBackendState("error");
         setBackendMessage("Backend connection failed");
-        return;
+      } else {
+        setBackendState("connected");
+        setBackendMessage(statusData.app_name + " backend connected");
       }
 
-      setBackendState("connected");
-      setBackendMessage(data.app_name + " backend connected");
+      setSessions((sessionData as SessionRow[]) ?? []);
+      setFeedback((feedbackData as FeedbackRow[]) ?? []);
     };
 
-    void checkBackend();
+    void loadDashboard();
 
     return () => {
       mounted = false;
     };
   }, []);
+
+  const completedCount = useMemo(
+    () => sessions.filter((session) => session.status === "completed").length,
+    [sessions],
+  );
+
+  const feedbackFlags = useMemo(
+    () => feedback.filter((item) => item.discomfort !== "none").length,
+    [feedback],
+  );
 
   return (
     <main className="page coach-page">
@@ -64,11 +107,11 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
       <section className="coach-grid">
         <article className="metric-card">
           <span>Sessions this week</span>
-          <strong>0 / 0</strong>
+          <strong>{completedCount} / {sessions.length}</strong>
         </article>
         <article className="metric-card">
           <span>Feedback flags</span>
-          <strong>0</strong>
+          <strong>{feedbackFlags}</strong>
         </article>
       </section>
 
