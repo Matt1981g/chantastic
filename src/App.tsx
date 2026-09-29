@@ -43,7 +43,7 @@ function BottomNav({ route }: { route: RouteName }) {
     <nav className="bottom-nav" aria-label="Main navigation">
       <a className={route === "week" ? "active" : ""} href="#/week">
         <span aria-hidden="true">📅</span>
-        <span>Week</span>
+        <span>Plan</span>
       </a>
       <a className={route === "history" ? "active" : ""} href="#/history">
         <span aria-hidden="true">✨</span>
