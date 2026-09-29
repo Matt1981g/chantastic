@@ -1135,6 +1135,84 @@
   cursor: pointer;
 }
 
+
+.coach-bridge {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(245, 244, 255, 0.72);
+}
+
+.coach-bridge-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coach-bridge-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.coach-bridge-heading .muted {
+  margin: 6px 0 0;
+}
+
+.bridge-version {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.coach-bridge-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.bridge-import-button {
+  min-height: 50px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: var(--accent);
+  color: #fff !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+}
+
+.bridge-import-button input {
+  display: none;
+}
+
+.bridge-message {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@media (max-width: 540px) {
+  .coach-bridge-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 380px) {
   .choice-grid--three {
     grid-template-columns: 1fr;
