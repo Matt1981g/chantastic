@@ -19,6 +19,9 @@ type Feedback = {
   actual_minutes: number | null;
   distance_value: number | null;
   distance_unit: "m" | "km" | null;
+  cardio_equipment_key: string | null;
+  resistance_level: number | null;
+  incline_percent: number | null;
   notes: string | null;
 };
 
@@ -67,7 +70,7 @@ export default function History() {
       if (rows.length > 0) {
         const { data: feedbackData } = await supabase
           .from("session_feedback")
-          .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,notes")
+          .select("session_id,effort,enjoyment,post_feeling,discomfort,actual_minutes,distance_value,distance_unit,cardio_equipment_key,resistance_level,incline_percent,notes")
           .in("session_id", rows.map((session) => session.id));
 
         setFeedback((feedbackData as Feedback[]) ?? []);
@@ -109,7 +112,7 @@ export default function History() {
           </div>
           <div>
             <span>Average effort</span>
-            <strong>{averageEffort}/10</strong>
+            <strong>{averageEffort}/5</strong>
           </div>
         </section>
       ) : null}
@@ -153,8 +156,14 @@ export default function History() {
                         Distance <strong>{sessionFeedback.distance_value} {sessionFeedback.distance_unit}</strong>
                       </span>
                     ) : null}
-                    <span>Effort <strong>{sessionFeedback.effort}/10</strong></span>
-                    <span>Enjoyment <strong>{sessionFeedback.enjoyment}/10</strong></span>
+                    {sessionFeedback.incline_percent != null ? (
+                      <span>Incline <strong>{sessionFeedback.incline_percent}%</strong></span>
+                    ) : null}
+                    {sessionFeedback.resistance_level != null ? (
+                      <span>Level <strong>{sessionFeedback.resistance_level}</strong></span>
+                    ) : null}
+                    <span>Effort <strong>{sessionFeedback.effort}/5</strong></span>
+                    <span>Enjoyment <strong>{sessionFeedback.enjoyment}/5</strong></span>
                     <span>
                       {sessionFeedback.discomfort === "none"
                         ? "No discomfort"
