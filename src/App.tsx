@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import CoachDashboard from "./coach/CoachDashboard";
 import History from "./pages/History";
-import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Week from "./pages/Week";
 import Workout from "./pages/Workout";
 import { supabase } from "./services/supabase";
 import "./App.css";
 
-type RouteName = "today" | "week" | "history" | "workout" | "coach";
+type RouteName = "week" | "history" | "workout" | "coach";
 type AuthState = "loading" | "signedOut" | "signedIn" | "denied";
 
 type Profile = {
@@ -35,17 +34,13 @@ function getRoute(): RouteName {
     case "coach":
       return "coach";
     default:
-      return "today";
+      return "week";
   }
 }
 
 function BottomNav({ route }: { route: RouteName }) {
   return (
     <nav className="bottom-nav" aria-label="Main navigation">
-      <a className={route === "today" ? "active" : ""} href="#/">
-        <span aria-hidden="true">☀️</span>
-        <span>Today</span>
-      </a>
       <a className={route === "week" ? "active" : ""} href="#/week">
         <span aria-hidden="true">📅</span>
         <span>Week</span>
@@ -118,7 +113,7 @@ export default function App() {
     setProfile(data as Profile);
     setAuthState("signedIn");
 
-    if (data.role === "coach" && getRoute() === "today") {
+    if (data.role === "coach" && getRoute() === "week") {
       window.location.hash = "/coach";
     }
   }, []);
@@ -151,7 +146,7 @@ export default function App() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    window.location.hash = "/";
+    window.location.hash = "/week";
     setProfile(null);
     setAuthState("signedOut");
   };
@@ -197,7 +192,6 @@ export default function App() {
   }
 
   const page = {
-    today: <Home displayName={profile.display_name} />,
     week: <Week />,
     history: <History />,
     workout: <Workout />,
