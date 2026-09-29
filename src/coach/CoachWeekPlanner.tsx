@@ -28,6 +28,16 @@ type SessionDraft = {
   blocks: BlockDraft[];
 };
 
+type CoachImport = {
+  contract_version: "CHANTASTIC_COACH_BRIDGE_1.0";
+  next_week: {
+    week_start: string;
+    target_sessions: number;
+    coach_summary?: string;
+    sessions: SessionDraft[];
+  };
+};
+
 const sessionLabels: Record<SessionType, string> = {
   cardio: "Cardio",
   swim: "Swim",
@@ -89,6 +99,8 @@ export default function CoachWeekPlanner() {
   const [coachSummary, setCoachSummary] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [bridgeMessage, setBridgeMessage] = useState("");
+  const [bridgeBusy, setBridgeBusy] = useState(false);
 
   useEffect(() => {
     const loadAthlete = async () => {
@@ -206,6 +218,183 @@ export default function CoachWeekPlanner() {
           : session,
       ),
     );
+  };
+
+
+  const exportCoachBridge = async () => {
+    if (!athlete) {
+      setBridgeMessage("Chantal needs to sign in once before training history can be exported.");
+      return;
+    }
+
+    setBridgeBusy(true);
+    setBridgeMessage("");
+
+    const since = new Date();
+    since.setDate(since.getDate() - 21);
+    const sinceDate = since.toISOString().slice(0, 10);
+
+    const { data: plans, error: plansError } = await supabase
+      .from("weekly_plans")
+      .select("id,week_start,status,target_sessions,coach_summary,created_at,updated_at,published_at")
+      .eq("user_id", athlete.id)
+      .gte("week_start", sinceDate)
+      .order("week_start");
+
+    if (plansError) {
+      setBridgeBusy(false);
+      setBridgeMessage(plansError.message);
+      return;
+    }
+
+    const { data: sessionRows, error: sessionsError } = await supabase
+      .from("sessions")
+      .select("id,weekly_plan_id,scheduled_date,session_type,title,estimated_minutes,optional,status,coach_note,user_note,started_at,completed_at,sort_order")
+      .eq("user_id", athlete.id)
+      .gte("scheduled_date", sinceDate)
+      .order("scheduled_date")
+      .order("sort_order");
+
+    if (sessionsError) {
+      setBridgeBusy(false);
+      setBridgeMessage(sessionsError.message);
+      return;
+    }
+
+    const sessionIds = (sessionRows ?? []).map((session) => session.id);
+
+    const [{ data: blockRows, error: blocksError }, { data: feedbackRows, error: feedbackError }] =
+      sessionIds.length > 0
+        ? await Promise.all([
+            supabase
+              .from("session_blocks")
+              .select("id,session_id,block_type,title,duration_minutes,instructions,target_effort_min,target_effort_max,target_metric,sort_order")
+              .in("session_id", sessionIds)
+              .order("sort_order"),
+            supabase
+              .from("session_feedback")
+              .select("session_id,effort,enjoyment,post_feeling,discomfort,notes,submitted_at")
+              .in("session_id", sessionIds),
+          ])
+        : [
+            { data: [], error: null },
+            { data: [], error: null },
+          ];
+
+    if (blocksError || feedbackError) {
+      setBridgeBusy(false);
+      setBridgeMessage(blocksError?.message ?? feedbackError?.message ?? "Could not export history.");
+      return;
+    }
+
+    const exportPayload = {
+      contract_version: "CHANTASTIC_COACH_BRIDGE_1.0",
+      generated_at: new Date().toISOString(),
+      athlete: {
+        display_name: athlete.display_name,
+      },
+      coaching_context: {
+        primary_goal: "Build sustainable gym confidence and general fitness.",
+        current_style: "Beginner-friendly cardio and swimming, with simple strength added only when appropriate.",
+        normal_session_minutes: "45-55",
+        normal_weekly_frequency: "3-5",
+        swim_ui_rule: "Swimming sessions must be programmed as a complete plan viewed before entering the pool. No staged phone interaction while swimming.",
+        programming_instruction:
+          "Review recent adherence and feedback. Produce the next week conservatively, progressing only when the completed sessions and feedback support it.",
+      },
+      recent_history_days: 21,
+      weekly_plans: plans ?? [],
+      sessions: sessionRows ?? [],
+      session_blocks: blockRows ?? [],
+      feedback: feedbackRows ?? [],
+      required_response: {
+        contract_version: "CHANTASTIC_COACH_BRIDGE_1.0",
+        next_week: {
+          week_start: "YYYY-MM-DD",
+          target_sessions: "3, 4 or 5",
+          coach_summary: "short optional summary",
+          sessions: [
+            {
+              scheduled_date: "YYYY-MM-DD",
+              session_type: "cardio | swim | mixed | strength",
+              title: "string",
+              estimated_minutes: "number",
+              optional: "boolean",
+              blocks: [
+                {
+                  title: "string",
+                  block_type: "warmup | cardio | swim | strength | intervals | cooldown | other",
+                  duration_minutes: "number",
+                  instructions: "string",
+                  target_effort_min: "1-10",
+                  target_effort_max: "1-10",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download =
+      new Date().toISOString().slice(0, 10).replaceAll("-", "") +
+      "_CHANTASTIC_COACH_BRIDGE.json";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+
+    setBridgeBusy(false);
+    setBridgeMessage("Coach Bridge export created. Upload that JSON to ChatGPT.");
+  };
+
+  const importCoachBridgeFile = async (file: File) => {
+    setBridgeMessage("");
+
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw) as CoachImport;
+
+      if (parsed.contract_version !== "CHANTASTIC_COACH_BRIDGE_1.0") {
+        throw new Error("Wrong Coach Bridge contract version.");
+      }
+
+      if (!parsed.next_week || !Array.isArray(parsed.next_week.sessions)) {
+        throw new Error("The JSON does not contain a valid next_week programme.");
+      }
+
+      const importedSessions = parsed.next_week.sessions;
+
+      if (importedSessions.length < 1 || importedSessions.length > 7) {
+        throw new Error("Imported programme must contain between 1 and 7 sessions.");
+      }
+
+      for (const session of importedSessions) {
+        if (!["cardio", "swim", "mixed", "strength"].includes(session.session_type)) {
+          throw new Error("Imported programme contains an unsupported session type.");
+        }
+
+        if (!Array.isArray(session.blocks)) {
+          throw new Error("Every imported session must contain a blocks array.");
+        }
+      }
+
+      setWeekStart(parsed.next_week.week_start);
+      setTargetSessions(parsed.next_week.target_sessions);
+      setCoachSummary(parsed.next_week.coach_summary ?? "");
+      setSessions(importedSessions);
+      setSaveState("idle");
+      setMessage("");
+      setBridgeMessage("ChatGPT programme imported into the editor. Review it before saving or publishing.");
+    } catch (error) {
+      setBridgeMessage(error instanceof Error ? error.message : "Could not import Coach Bridge JSON.");
+    }
   };
 
   const savePlan = async (status: PlanStatus) => {
@@ -359,6 +548,46 @@ export default function CoachWeekPlanner() {
           Chantal needs to sign in to Chantastic once. Her user profile will then appear here automatically.
         </div>
       ) : null}
+
+
+      <section className="coach-bridge">
+        <div className="coach-bridge-heading">
+          <div>
+            <span className="eyebrow">CHATGPT COACH BRIDGE</span>
+            <h3>Weekly review & programme import</h3>
+            <p className="muted">
+              Export the last 21 days, upload the JSON to ChatGPT, then import the returned week here.
+            </p>
+          </div>
+          <span className="bridge-version">1.0</span>
+        </div>
+
+        <div className="coach-bridge-actions">
+          <button
+            className="secondary-button planner-action"
+            type="button"
+            disabled={bridgeBusy || !athlete}
+            onClick={() => void exportCoachBridge()}
+          >
+            {bridgeBusy ? "Building export…" : "Export for ChatGPT"}
+          </button>
+
+          <label className="bridge-import-button">
+            Import ChatGPT Week
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importCoachBridgeFile(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </div>
+
+        {bridgeMessage ? <p className="bridge-message">{bridgeMessage}</p> : null}
+      </section>
 
       <div className="planner-toolbar">
         <label>
