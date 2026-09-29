@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { useState } from "react";
+import Home from "../pages/Home";
 import CoachWeekPlanner from "./CoachWeekPlanner";
 import { APP_VERSION } from "../version";
 
 type BackendState = "checking" | "connected" | "error";
 
 export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise<void> }) {
+  const [showPreview, setShowPreview] = useState(false);
   const [backendState, setBackendState] = useState<BackendState>("checking");
   const [backendMessage, setBackendMessage] = useState("Checking Chantastic backend…");
 
@@ -69,6 +72,32 @@ export default function CoachDashboard({ onSignOut }: { onSignOut: () => Promise
           <strong>0</strong>
         </article>
       </section>
+
+      <button
+        className="preview-button"
+        type="button"
+        onClick={() => setShowPreview((current) => !current)}
+      >
+        {showPreview ? "Close Chantal Preview" : "Preview Chantal App"}
+      </button>
+
+      {showPreview ? (
+        <div className="coach-preview-frame">
+          <div className="coach-preview-bar">PREVIEW — not saved to Supabase</div>
+          <Home
+            displayName="Chantal"
+            previewSession={{
+              id: "preview",
+              scheduled_date: new Date().toISOString().slice(0, 10),
+              session_type: "swim",
+              title: "Easy Swim",
+              estimated_minutes: 50,
+              optional: false,
+              status: "planned",
+            }}
+          />
+        </div>
+      ) : null}
 
       <CoachWeekPlanner />
 
