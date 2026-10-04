@@ -1624,3 +1624,12 @@
 .coach-plan-empty h3 { margin:8px 0 0; color:var(--ink); }
 .coach-plan-empty p { margin:7px auto 0; max-width:38ch; color:var(--muted); line-height:1.5; }
 @media (max-width:540px){ .coach-plan-review-heading{flex-direction:column;} }
+
+
+.week-plan-group + .week-plan-group {
+  margin-top: 28px;
+}
+
+.week-summary-card p + p {
+  margin-top: 8px;
+}
