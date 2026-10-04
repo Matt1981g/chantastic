@@ -3,6 +3,7 @@ import { supabase } from "../services/supabase";
 
 type WeekSession = {
   id: string;
+  weekly_plan_id: string;
   equipment_key?: string | null;
   scheduled_date: string;
   session_type: "cardio" | "swim" | "mixed" | "strength";
@@ -17,6 +18,11 @@ type WeekPlan = {
   week_start: string;
   coach_summary: string | null;
   target_sessions: number;
+};
+
+type WeekBundle = {
+  plan: WeekPlan;
+  sessions: WeekSession[];
 };
 
 type PreviewBlock = {
@@ -59,6 +65,12 @@ function mondayOfCurrentWeek() {
   return now.toISOString().slice(0, 10);
 }
 
+function addDays(date: string, days: number) {
+  const value = new Date(date + "T12:00:00");
+  value.setDate(value.getDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 function formatDay(date: string) {
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -67,47 +79,76 @@ function formatDay(date: string) {
   }).format(new Date(date + "T12:00:00"));
 }
 
+function formatWeekStart(date: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+  }).format(new Date(date + "T12:00:00"));
+}
+
 export default function Week() {
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-  const [sessions, setSessions] = useState<WeekSession[]>([]);
+  const [weeks, setWeeks] = useState<WeekBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [blocksBySession, setBlocksBySession] = useState<Map<string, PreviewBlock[]>>(new Map());
 
   useEffect(() => {
-    const loadWeek = async () => {
+    let mounted = true;
+    let refreshTimer: number | null = null;
+
+    const loadWeeks = async (showLoader = false) => {
+      if (showLoader && mounted) {
+        setLoading(true);
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setLoading(false);
+        if (mounted) {
+          setWeeks([]);
+          setBlocksBySession(new Map());
+          setLoading(false);
+        }
         return;
       }
 
-      const weekStart = mondayOfCurrentWeek();
+      const currentWeekStart = mondayOfCurrentWeek();
+      const nextWeekStart = addDays(currentWeekStart, 7);
 
-      const { data: planData } = await supabase
+      const { data: planData, error: planError } = await supabase
         .from("weekly_plans")
         .select("id,week_start,coach_summary,target_sessions")
         .eq("user_id", user.id)
-        .eq("week_start", weekStart)
         .eq("status", "published")
-        .maybeSingle();
+        .in("week_start", [currentWeekStart, nextWeekStart])
+        .order("week_start");
 
-      if (!planData) {
+      if (!mounted) return;
+
+      if (planError || !planData?.length) {
+        setWeeks([]);
+        setBlocksBySession(new Map());
         setLoading(false);
         return;
       }
 
+      const cleanPlans = planData as WeekPlan[];
+      const planIds = cleanPlans.map((item) => item.id);
+
       const { data: sessionData } = await supabase
         .from("sessions")
-        .select("id,scheduled_date,session_type,title,estimated_minutes,optional,status")
-        .eq("weekly_plan_id", planData.id)
+        .select("id,weekly_plan_id,scheduled_date,session_type,title,estimated_minutes,optional,status")
+        .in("weekly_plan_id", planIds)
         .order("scheduled_date")
         .order("sort_order");
 
+      if (!mounted) return;
+
       const cleanSessions = (sessionData as WeekSession[]) ?? [];
+      const groupedBlocks = new Map<string, PreviewBlock[]>();
+
       if (cleanSessions.length) {
         const { data: blockData } = await supabase
           .from("session_blocks")
@@ -115,42 +156,118 @@ export default function Week() {
           .in("session_id", cleanSessions.map((item) => item.id))
           .order("sort_order");
 
+        if (!mounted) return;
+
         const cleanBlocks = (blockData ?? []) as PreviewBlock[];
         const firstEquipment = new Map<string, string>();
-        const grouped = new Map<string, PreviewBlock[]>();
 
         for (const block of cleanBlocks) {
           if (!firstEquipment.has(block.session_id) && block.equipment_key) {
             firstEquipment.set(block.session_id, block.equipment_key);
           }
-          grouped.set(block.session_id, [...(grouped.get(block.session_id) ?? []), block]);
+
+          groupedBlocks.set(
+            block.session_id,
+            [...(groupedBlocks.get(block.session_id) ?? []), block],
+          );
         }
 
-        cleanSessions.forEach((item) => { item.equipment_key = firstEquipment.get(item.id) ?? null; });
-        setBlocksBySession(grouped);
+        cleanSessions.forEach((item) => {
+          item.equipment_key = firstEquipment.get(item.id) ?? null;
+        });
       }
 
-      setPlan(planData as WeekPlan);
-      setSessions(cleanSessions);
+      const loadedWeeks = cleanPlans.map((plan) => ({
+        plan,
+        sessions: cleanSessions.filter((session) => session.weekly_plan_id === plan.id),
+      }));
+
+      setWeeks(loadedWeeks);
+      setBlocksBySession(groupedBlocks);
       setLoading(false);
     };
 
-    void loadWeek();
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      refreshTimer = window.setTimeout(() => {
+        void loadWeeks(false);
+      }, 200);
+    };
+
+    void loadWeeks(true);
+
+    const channel = supabase
+      .channel("chantastic-athlete-plan")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "weekly_plans" },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sessions" },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "session_blocks" },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    const handleFocus = () => scheduleRefresh();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      mounted = false;
+
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
+
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
-  const completed = useMemo(
-    () => sessions.filter((session) => session.status === "completed").length,
-    [sessions],
+  const currentWeekStart = mondayOfCurrentWeek();
+  const currentWeek = useMemo(
+    () => weeks.find((item) => item.plan.week_start === currentWeekStart) ?? null,
+    [currentWeekStart, weeks],
   );
+  const nextWeek = useMemo(
+    () => weeks.find((item) => item.plan.week_start === addDays(currentWeekStart, 7)) ?? null,
+    [currentWeekStart, weeks],
+  );
+
+  const completed = useMemo(
+    () => currentWeek?.sessions.filter((session) => session.status === "completed").length ?? 0,
+    [currentWeek],
+  );
+
+  const headerCopy = currentWeek
+    ? completed + " of " + currentWeek.sessions.length + " sessions complete this week"
+    : nextWeek
+      ? "Next week is published and ready."
+      : "Your plan, kept simple.";
 
   return (
     <main className="page">
       <section className="section-header">
         <span className="eyebrow">YOUR PLAN</span>
         <h1>Plan</h1>
-        <p className="muted">
-          {plan ? completed + " of " + sessions.length + " sessions complete" : "Your plan, kept simple."}
-        </p>
+        <p className="muted">{headerCopy}</p>
       </section>
 
       {loading ? (
@@ -158,7 +275,7 @@ export default function Week() {
           <span className="empty-icon" aria-hidden="true">✨</span>
           <h2>Loading your plan…</h2>
         </section>
-      ) : !plan ? (
+      ) : weeks.length === 0 ? (
         <section className="empty-card">
           <span className="empty-icon" aria-hidden="true">📅</span>
           <h2>No programme published yet</h2>
@@ -166,89 +283,101 @@ export default function Week() {
         </section>
       ) : (
         <>
-          {plan.coach_summary ? (
-            <section className="week-summary-card">
-              <span className="eyebrow">YOUR PLAN</span>
-              <p>{plan.coach_summary}</p>
-            </section>
-          ) : null}
+          {weeks.map(({ plan, sessions }) => {
+            const isCurrentWeek = plan.week_start === currentWeekStart;
+            const label = isCurrentWeek ? "THIS WEEK" : "NEXT WEEK";
 
-          <div className="week-session-list">
-            {sessions.map((session) => (
-              <article
-                className={
-                  "week-session-card " +
-                  (session.status === "completed" ? "week-session-card--complete" : "")
-                }
-                key={session.id}
-              >
-                <div className="week-session-icon" aria-hidden="true">
-                  {sessionIcon(session)}
-                </div>
-                <div className="week-session-copy">
-                  <span className="week-session-day">{formatDay(session.scheduled_date)}</span>
-                  <h2>{session.title}</h2>
-                  <div className="week-session-meta">
-                    <span>{session.estimated_minutes} min</span>
-                    <span>{session.session_type}</span>
-                    {session.optional ? <span>optional</span> : null}
-                  </div>
-                </div>
-                <div className="week-session-actions">
-                  <button
-                    type="button"
-                    className="week-preview-button"
-                    onClick={() => setPreviewId((current) => current === session.id ? null : session.id)}
-                  >
-                    {previewId === session.id ? "Hide preview" : "Preview"}
-                  </button>
-                  {session.status !== "completed" ? (
-                    <a className="week-start-button" href={"#/workout?session=" + session.id}>Start session</a>
-                  ) : null}
-                  <span className={"week-status week-status--" + session.status}>
-                  {session.status === "completed"
-                    ? "Done"
-                    : session.status === "in_progress"
-                      ? "Started"
-                      : session.status === "skipped"
-                        ? "Skipped"
-                        : "Planned"}
-                  </span>
-                </div>
+            return (
+              <section className="week-plan-group" key={plan.id}>
+                <section className="week-summary-card">
+                  <span className="eyebrow">{label}</span>
+                  <p>
+                    <strong>
+                      {isCurrentWeek ? "Current plan" : "Next plan"} · starts {formatWeekStart(plan.week_start)}
+                    </strong>
+                  </p>
+                  {plan.coach_summary ? <p>{plan.coach_summary}</p> : null}
+                </section>
 
-                {previewId === session.id ? (
-                  <div className="week-session-preview">
-                    {(blocksBySession.get(session.id) ?? []).map((block, index) => (
-                      <div className="week-preview-block" key={index}>
-                        <div className="week-preview-topline">
-                          <strong>{index + 1}. {block.title}</strong>
-                          {block.duration_minutes ? <span>{block.duration_minutes} min</span> : null}
-                        </div>
-                        <div className="week-preview-meta">
-                          {block.target_effort_min && block.target_effort_max ? (
-                            <span>Effort {block.target_effort_min}–{block.target_effort_max}/5</span>
-                          ) : null}
-                          {block.target_metric?.target_speed_kmh != null ? (
-                            <span>≈ {block.target_metric.target_speed_kmh} km/h</span>
-                          ) : null}
-                          {block.target_metric?.target_distance != null ? (
-                            <span>Target {block.target_metric.target_distance} {block.target_metric.distance_unit ?? "km"}</span>
-                          ) : null}
-                          {block.target_metric?.incline_percent != null ? (
-                            <span>Incline {block.target_metric.incline_percent}%</span>
-                          ) : null}
-                          {block.target_metric?.resistance_level != null ? (
-                            <span>Level {block.target_metric.resistance_level}</span>
-                          ) : null}
-                        </div>
-                        {block.instructions ? <p>{block.instructions}</p> : null}
+                <div className="week-session-list">
+                  {sessions.map((session) => (
+                    <article
+                      className={
+                        "week-session-card " +
+                        (session.status === "completed" ? "week-session-card--complete" : "")
+                      }
+                      key={session.id}
+                    >
+                      <div className="week-session-icon" aria-hidden="true">
+                        {sessionIcon(session)}
                       </div>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
+                      <div className="week-session-copy">
+                        <span className="week-session-day">{formatDay(session.scheduled_date)}</span>
+                        <h2>{session.title}</h2>
+                        <div className="week-session-meta">
+                          <span>{session.estimated_minutes} min</span>
+                          <span>{session.session_type}</span>
+                          {session.optional ? <span>optional</span> : null}
+                        </div>
+                      </div>
+                      <div className="week-session-actions">
+                        <button
+                          type="button"
+                          className="week-preview-button"
+                          onClick={() => setPreviewId((current) => current === session.id ? null : session.id)}
+                        >
+                          {previewId === session.id ? "Hide preview" : "Preview"}
+                        </button>
+                        {session.status !== "completed" ? (
+                          <a className="week-start-button" href={"#/workout?session=" + session.id}>Start session</a>
+                        ) : null}
+                        <span className={"week-status week-status--" + session.status}>
+                          {session.status === "completed"
+                            ? "Done"
+                            : session.status === "in_progress"
+                              ? "Started"
+                              : session.status === "skipped"
+                                ? "Skipped"
+                                : "Planned"}
+                        </span>
+                      </div>
+
+                      {previewId === session.id ? (
+                        <div className="week-session-preview">
+                          {(blocksBySession.get(session.id) ?? []).map((block, index) => (
+                            <div className="week-preview-block" key={index}>
+                              <div className="week-preview-topline">
+                                <strong>{index + 1}. {block.title}</strong>
+                                {block.duration_minutes ? <span>{block.duration_minutes} min</span> : null}
+                              </div>
+                              <div className="week-preview-meta">
+                                {block.target_effort_min && block.target_effort_max ? (
+                                  <span>Effort {block.target_effort_min}–{block.target_effort_max}/5</span>
+                                ) : null}
+                                {block.target_metric?.target_speed_kmh != null ? (
+                                  <span>≈ {block.target_metric.target_speed_kmh} km/h</span>
+                                ) : null}
+                                {block.target_metric?.target_distance != null ? (
+                                  <span>Target {block.target_metric.target_distance} {block.target_metric.distance_unit ?? "km"}</span>
+                                ) : null}
+                                {block.target_metric?.incline_percent != null ? (
+                                  <span>Incline {block.target_metric.incline_percent}%</span>
+                                ) : null}
+                                {block.target_metric?.resistance_level != null ? (
+                                  <span>Level {block.target_metric.resistance_level}</span>
+                                ) : null}
+                              </div>
+                              {block.instructions ? <p>{block.instructions}</p> : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </>
       )}
     </main>
